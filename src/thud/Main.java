@@ -6,14 +6,16 @@ import java.util.List;
 
 public class Main {
 
-	// TODO : Refactor play and replay return values to be new playState class which holds BoardStates turn and Boolean multiTurn
-	// current engine disallows 2nd non Remove play for Trolls, but only if it gets the correct multiTurn value, which the replay mechanism fails to return
+	private enum SpecialActions {
+	    NORMAL, SAVE, QUIT, FORFEIT;
+	}
 
 	private static Board board = new Board();
 	private static BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
 	private static List<List<String>> moveLogs = new ArrayList<>();
 	private static int[] playerScores = new int[2]; // use mod 2 arithmetic to access index while scoring
-	private static BoardStates turn;
+	private static PlayState turn = new PlayState();
+	private static SpecialActions specialAction;
 
     public static void main(String[] args) throws IOException {
 
@@ -36,7 +38,7 @@ public class Main {
 			// stopped at beginning of second round
             else if (!resumeRound && moveLogs.size() == 1) {
 				board.replayMoveLog(moveLogs.get(0));
-				turn = BoardStates.DWARF;
+				turn.setTurn(BoardStates.DWARF);
 			}
 			// stopped in middle of second round
 			else if (resumeRound && moveLogs.size() == 2) {
@@ -69,8 +71,6 @@ public class Main {
     	    // don't initialize a new round if we loaded from a file
     		if (!resumeRound) {
 				board.initializeGame();
-				//moveLogs.add(board.getMoveLog());
-				turn = BoardStates.DWARF;
 
 				System.out.printf("Starting round %d\n", round+1);
                 System.out.println("Dwarfs move first");
@@ -78,7 +78,7 @@ public class Main {
 			else {
 				System.out.printf("Resuming round %d\n", round + 1);
 				System.out.printf("Current turn: %s\n",
-					(turn == BoardStates.DWARF) ? "Dwarfs" : "Trolls");
+					(turn.getTurn().equals(BoardStates.DWARF)) ? "Dwarfs" : "Trolls");
 			}
 			resumeRound = false;
 
@@ -86,16 +86,18 @@ public class Main {
 			while (playing) {
 				System.out.print(board);
 
-				turn = playNext(turn);
-				switch (turn) {
-					case FORBIDDEN:
+				specialAction = playNext(turn);
+				switch (specialAction) {
+					case NORMAL:
+						break;
+					case QUIT:
 						// don't allow saving if first round and empty moveLog
 					    if ( !(moveLogs.size() == 0 && round == 0) ) {
 							savePrompt();
 						}
 						System.exit(0);
 						break;
-					case STONE:
+					case SAVE:
                         if ( (moveLogs.size() == 0 && round == 0) ) {
                            System.out.println("Nothing to save!");
                         }
@@ -105,7 +107,7 @@ public class Main {
 							saveFile(input);
 						}
 						break;
-					case FREE:
+					case FORFEIT:
 						playing = false;
 						break;
 				}
@@ -175,14 +177,13 @@ public class Main {
 		playerScores[(round+1) % 2] = board.getNumTrolls() * 40;
 	}
 
-	private static BoardStates playNext(BoardStates turn) throws IOException {
-		boolean multiTurn = false;
+	private static SpecialActions playNext(PlayState turn) throws IOException {
 		boolean validMove = false;
 		while (!validMove) {
 			if (board.getNumDwarfs() == 0 || board.getNumTrolls() == 0)
-				return BoardStates.FREE;
+				return SpecialActions.FORFEIT;
 
-			System.out.print((turn == BoardStates.DWARF) ? "Dwarfs: " : "Trolls: ");
+			System.out.print((turn.getTurn().equals(BoardStates.DWARF)) ? "Dwarfs: " : "Trolls: ");
 			String move = in.readLine();
 
 			// 'H'url by troll must be followed by an 'R'emove of 1 dwarf or more
@@ -190,9 +191,9 @@ public class Main {
             // (only Troll can 'H' so this test is safe)
 			if (board.getLastMove().charAt(0) != 'H') {
 				if (move.equalsIgnoreCase("exit"))
-					return BoardStates.FORBIDDEN;
+					return SpecialActions.QUIT;
 				if (move.equalsIgnoreCase("save")) {
-					return BoardStates.STONE;
+					return SpecialActions.SAVE;
 				}
 				if (move.equalsIgnoreCase("forfeit")) {
 					char lastCmd = board.getLastMove().charAt(0);
@@ -200,27 +201,25 @@ public class Main {
 						throw new IllegalArgumentException("Can't forfeit mid shove.");
                     }
                     // check if last move allows implicit remove of nothing, if so add it as explicit command and forfeit
-					if (lastCmd == 'M' && turn == BoardStates.TROLL) {
+					if (lastCmd == 'M' && turn.getTurn().equals(BoardStates.TROLL)) {
 						int[] oldEndPos = board.notationToPosition(board.getLastMove().substring(5));
 						if (board.adjacentToAny(BoardStates.DWARF, oldEndPos)) {
-							board.play(turn, "R", true);
+							board.play(turn, "R");
 						}
 					}
-                    return BoardStates.FREE;
+					return SpecialActions.FORFEIT;
 				}
 			}
 
 			try {
-				multiTurn = board.play(turn, move, multiTurn);
+				board.play(turn, move);
 				validMove = true;
 			} catch (IllegalArgumentException ex) {
 				System.out.println(ex.getMessage());
 			}
 		}
-		if (!multiTurn)
-			return (turn == BoardStates.DWARF) ? BoardStates.TROLL : BoardStates.DWARF;
-		else
-			return turn;
+
+		return SpecialActions.NORMAL;
 	}
 
 	// file format is round1_moves empty_line round2_moves

@@ -42,7 +42,7 @@ class BoardTest {
                 // troll illegal movement
                 new moveTestPair("H G7 G8", true), // not a valid troll command
                 new moveTestPair("S G7 G8", true), // shove must be more than one troll
-                new moveTestPair("M E7 A7", true), // not a troll
+                new moveTestPair("M E7 B7", true), // not a troll
                 new moveTestPair("M G7 G8", true), // not free
                 new moveTestPair("M G7 G4", true), // more than 1 space away vertical
                 new moveTestPair("M G7 I5", true), // more than 1 space away diagonally
@@ -85,29 +85,21 @@ class BoardTest {
         Board board = new Board();
         board.initializeGame();
 
-        boolean removeDwarfs = false;
-        BoardStates turn = BoardStates.DWARF;
+        PlayState turn = new PlayState();
 
         for (moveTestPair move : errorGame) {
-            boolean validMove = false;
             try {
-                removeDwarfs = board.play(turn, move.move, removeDwarfs);
+                board.play(turn, move.move);
                 if (move.errorExpected) {
                     System.out.println(board.toString());
                     fail("Illegal move allowed: " + move.move);
                 }
-                else
-                    validMove = true;
             }
             catch (IllegalArgumentException ex) {
                 if (!move.errorExpected) {
                    System.out.println(board.toString());
                    fail("Legal move forbidden: " + move.move + ex.getLocalizedMessage());
                 }
-            }
-
-            if (validMove && !removeDwarfs) {
-                turn = (turn == BoardStates.DWARF) ? BoardStates.TROLL : BoardStates.DWARF;
             }
         }
 

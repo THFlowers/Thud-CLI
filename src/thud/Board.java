@@ -20,15 +20,12 @@ public class Board {
     }
 
     // replay the moves for a single round
-    BoardStates replayMoveLog(List<String> moveLog) {
+    PlayState replayMoveLog(List<String> moveLog) {
         initializeBoard();
         initializeGame();
-        BoardStates turn = BoardStates.DWARF;
-        for (String move : moveLog) {
-            if (!play(turn, move)) {
-                turn = (turn == BoardStates.DWARF) ? BoardStates.TROLL : BoardStates.DWARF;
-            }
-        }
+        PlayState turn = new PlayState();
+        for (String move : moveLog)
+            play(turn, move);
         this.moveLog = moveLog;
         return turn;
     }
@@ -173,66 +170,65 @@ public class Board {
     }
 
     // TODO: refactor parsing/validation outside this class, pass in only encoded movement order
-    // doubleMove is only important for interactive sessions, replay already has valid moves
-    public boolean play(BoardStates turn, String move) {
-        return play(turn, move, false);
-    }
-
-    // TODO: refactor parsing/validation outside this class, pass in only encoded movement order
-    public boolean play(BoardStates turn, String move, boolean doubleMove) {
+    public void play(PlayState turn, String move) {
 
         move = move.toUpperCase(); // for uniformity and to ease comparisons
         String[] order = move.split(" ");
 
-        if (doubleMove && !order[0].equals("R")) {
-            throw new IllegalArgumentException("Second troll move must be 'R'emove!");
+        if (turn.isRemoveTurn()) {
+             if (!order[0].equals("R"))
+                 throw new IllegalArgumentException("Remove turn must be a remove command!");
+             if (!turn.isTurn(BoardStates.TROLL))
+                 // shouldn't get here
+                 throw new IllegalArgumentException("Only Trolls can remove in standard Thud!");
+
+            int[][] removePositions = new int[Math.max(order.length-1,0)][];
+            for (int i=1; i<order.length; i++) {
+                removePositions[i - 1] = notationToPosition(order[i]);
+            }
+
+            removePlay(removePositions);
+            turn.setRemoveTurn(false);
         }
+        else {
 
-        if ((order.length != 3) && !order[0].equals("R"))
-            throw new IllegalArgumentException("Move must be of form Command StartPos [EndPos]");
-        if (order[0].length() != 1)
-            throw new IllegalArgumentException("Command must be a single letter");
+            if (order.length != 3)
+                throw new IllegalArgumentException("Move must be of form Command StartPos [EndPos]");
+            if (order[0].length() != 1)
+                throw new IllegalArgumentException("Command must be a single letter");
 
-        char ch = order[0].charAt(0);
+            char ch = order[0].charAt(0);
 
-        // semantics and syntax are different for Troll playing 'R'emove
-        // use dedicated function so don't mess up existing clean code
-        if (turn.equals(BoardStates.TROLL) && ch=='R') {
-            int[][] removePos = new int[Math.max(order.length-1,0)][];
-            for (int i=1; i<order.length; i++)
-                removePos[i-1] = notationToPosition(order[i]);
+            int[] startPos = notationToPosition(order[1]);
+            int[] endPos = notationToPosition(order[2]);
 
-            removePlay(removePos);
-            moveLog.add(move);
-            return false;
-        }
-        // else just do regular play
+            /* redundant as notationToPosition should generate valid positions, kept in case refactor introduces need
+            if (!positionOnBoard(startPos) || !positionOnBoard(endPos))
+                throw new IllegalArgumentException("Start and end positions must be at valid board positions");
+            */
 
-        int[] startPos = notationToPosition(order[1]);
-        int[] endPos = notationToPosition(order[2]);
+            if (Arrays.equals(startPos, endPos))
+                throw new IllegalArgumentException("Movement can't be to the same square");
 
-        /* redundant as notationToPosition should generate valid positions, kept in case refactor introduces need
-        if (!positionOnBoard(startPos) || !positionOnBoard(endPos))
-            throw new IllegalArgumentException("Start and end positions must be at valid board positions");
-        */
-        if (Arrays.equals(startPos,endPos))
-            throw new IllegalArgumentException("Movement can't be to the same square");
-
-        boolean multiTurn;
-        switch (turn) {
-            case DWARF:
-                multiTurn = playDwarf(ch, startPos, endPos);
-                break;
-            case TROLL:
-                multiTurn = playTroll(ch, startPos, endPos);
-                break;
-            default:
-                throw new IllegalArgumentException("Turn must be either Troll or Dwarf");
+            boolean removeTurn;
+            switch (turn.getTurn()) {
+                case DWARF:
+                    removeTurn = playDwarf(ch, startPos, endPos);
+                    turn.setRemoveTurn(removeTurn);
+                    break;
+                case TROLL:
+                    removeTurn = playTroll(ch, startPos, endPos);
+                    turn.setRemoveTurn(removeTurn);
+                    break;
+                // TODO: May become redundant after PlayState guards refactor or new enum
+                default:
+                    throw new IllegalArgumentException("Turn must be either Troll or Dwarf");
+            }
         }
 
         // necessary for multi-move turns (that is Troll captures)
         moveLog.add(move);
-        return multiTurn;
+        turn.alternateTurn();
     }
 
     // Troll only special play, assumes this is already checked (as in play() above)
@@ -253,7 +249,7 @@ public class Board {
                 mustCapture = true;
                 break;
             default:
-                throw new IllegalArgumentException("Previous move doesn't allow captures");
+                throw new IllegalArgumentException("Previous move doesn't allow captures!");
         }
 
         // retrieve anchorPos (old endPos)
