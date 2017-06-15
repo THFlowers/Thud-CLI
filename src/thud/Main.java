@@ -139,7 +139,8 @@ public class Main {
 		else
 			System.out.println("Game was a draw");
 
-		savePrompt();
+		if (startRound!=3)
+            savePrompt();
 	}
 
 	// the boolean refers to whether we are in the middle of a round or not
@@ -217,7 +218,7 @@ public class Main {
                     }
                     // check if last move allows implicit remove of nothing, if so add it as explicit command and forfeit
 					if (lastCmd == 'M' && turn.getTurn().equals(BoardStates.TROLL)) {
-						int[] oldEndPos = board.notationToPosition(player.getLastMove().substring(5));
+						BoardPoint oldEndPos = new BoardPoint(player.getLastMove().substring(5));
 						if (board.adjacentToAny(BoardStates.DWARF, oldEndPos)) {
 							player.play(turn, "R");
 						}

@@ -1,13 +1,16 @@
 package thud;
 
 import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * Created by Thai Flowers on 5/24/2017.
  */
 public class Board {
     private BoardStates[][] board = new BoardStates[15][15];
-    private int numTrolls=0, numDwarfs=0;
+    private List<BoardPoint> dwarfs = new LinkedList<>();
+    private List<BoardPoint> trolls = new LinkedList<>();
 
     public Board() {
         // set board to empty state (no pieces)
@@ -15,16 +18,20 @@ public class Board {
     }
 
     public int getNumTrolls() {
-        return numTrolls;
+        return trolls.size();
     }
-    // TODO: remove this and replace with list of each piece and remove/replace routines
-    public void setNumTrolls(int numTrolls) { this.numTrolls = numTrolls; }
+    public void addTroll(BoardPoint pos) {
+        trolls.add(pos);
+        setAtPosition(pos, BoardStates.TROLL);
+    }
 
     public int getNumDwarfs() {
-        return numDwarfs;
+        return dwarfs.size();
     }
-    // TODO: remove this and replace with list of each piece and remove/replace routines
-    public void setNumDwarfs(int numDwarfs) { this.numDwarfs = numDwarfs; }
+    public void addDwarf(BoardPoint pos) {
+        dwarfs.add(pos);
+        setAtPosition(pos, BoardStates.DWARF);
+    }
 
     // Set board to empty state, that is set valid and forbidden cells only
     // This is correct for Koom Valley Thud and regular Thud, thus here and not in Player
@@ -101,42 +108,36 @@ public class Board {
     }
 
 
-    public BoardStates getAtPosition(int[] pos) {
-        if ((pos.length != 2) || !positionOnBoard(pos))
-            throw new IllegalArgumentException();
-
-        return board[pos[0]][pos[1]];
+    public BoardStates getAtPosition(int x, int y) {
+        return getAtPosition(new BoardPoint(x,y));
+    }
+    public BoardStates getAtPosition(BoardPoint pos) {
+        return board[pos.x][pos.y];
     }
 
-    void setAtPosition(int[] pos, BoardStates state) {
-        if ((pos.length != 2) || !positionOnBoard(pos))
-            throw new IllegalArgumentException();
-
-        board[pos[0]][pos[1]] = state;
+    void setAtPosition(int x, int y, BoardStates state) {
+        setAtPosition(new BoardPoint(x,y), state);
+    }
+    void setAtPosition(BoardPoint pos, BoardStates state) {
+        board[pos.x][pos.y] = state;
     }
 
     // assumes valid pos (including size and positionOnBoard)
-    public boolean adjacentToAny(BoardStates state, int[] pos) {
-        /*
-        if (pos.length != 2)
-            throw new IllegalArgumentException();
-        */
+    public boolean adjacentToAny(BoardStates state, BoardPoint pos) {
 
-        int[] testPos = new int[2];
         for (int i=-1; i<=1; i++) {
             for (int j=-1; j<=1; j++) {
                 // ignore pos
                 if (i==0 && j==0)
                     continue;
                 // don't allow pos[0]+i out of bounds
-                if ((pos[0]+i < 0) || (pos[0]+i > 14))
+                if ((pos.x+i < 0) || (pos.x+i > 14))
                     continue;
                 // don't allow pos[1]+j out of bounds
-                if ((pos[1]+j < 0) || (pos[1]+j > 14))
+                if ((pos.y+j < 0) || (pos.y+j > 14))
                     continue;
 
-                testPos[0] = pos[0]+i;
-                testPos[1] = pos[1]+j;
+                BoardPoint testPos = new BoardPoint(pos.x+i, pos.y+j);
 
                 if (getAtPosition(testPos).equals(state))
                     return true;
@@ -145,57 +146,40 @@ public class Board {
         return false;
     }
 
-    // assumes pos is correct size
-    public boolean positionOnBoard(int[] pos) {
-        if ((pos[0] < 0) || (pos[0] > 14))
-            return false;
-        if ((pos[1] < 0) || (pos[1] > 14))
-            return false;
-        return true;
-    }
-
     // assumes valid startPos and endPos (including size and positionOnBoard)
-    public boolean positionsAreLinear(int[] startPos, int[] endPos) {
-        /*
-        if (!(startPos.length==2) || !(endPos.length==2))
-            throw new IllegalArgumentException();
-        */
-
-        return (startPos[0]==endPos[0]) ||
-               (startPos[1]==endPos[1]) ||
-               (Math.abs((startPos[1]-endPos[1])/(startPos[0]-endPos[0])) == 1);
+    public boolean positionsAreLinear(BoardPoint startPos, BoardPoint endPos) {
+        return (startPos.x==endPos.x) ||
+               (startPos.y==endPos.y) ||
+               (Math.abs((startPos.y-endPos.y)/(startPos.x-endPos.x)) == 1);
     }
 
-    public int[] notationToPosition(String s) {
-        int[] pos = new int[2];
-
-        char col = Character.toUpperCase(s.charAt(0));
-        if (!('A' <= col && col <= 'P'))
-            throw new IllegalArgumentException("Column must be between A and P");
-
-        int row = Integer.parseInt(s.substring(1));
-        if (!(1 <= row && row <= 15))
-            throw new IllegalArgumentException("Row must be between 1 and 15");
-
-        pos[0] = row-1;
-        pos[1] = col-'A';
-        return pos;
-    }
-
-    public void movePiece(int[] startPos, int[] endPos) {
+    public void movePiece(BoardPoint startPos, BoardPoint endPos) {
         BoardStates bs = getAtPosition(startPos);
         setAtPosition(startPos, BoardStates.FREE);
         setAtPosition(endPos, bs);
+
+        switch (bs) {
+            case TROLL:
+                trolls.remove(startPos);
+                trolls.add(endPos);
+                break;
+            case DWARF:
+                dwarfs.remove(startPos);
+                dwarfs.add(endPos);
+                break;
+            default:
+                throw new IllegalArgumentException();
+        }
     }
 
-    public void removePiece(int[] pos) {
+    public void removePiece(BoardPoint pos) {
         BoardStates bs = getAtPosition(pos);
         switch (bs) {
             case TROLL:
-                numTrolls--;
+                trolls.remove(pos);
                 break;
             case DWARF:
-                numDwarfs--;
+                dwarfs.remove(pos);
                 break;
             default:
                 throw new IllegalArgumentException();
