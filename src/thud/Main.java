@@ -3,6 +3,7 @@ package thud;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 
 public class Main {
 
@@ -10,10 +11,9 @@ public class Main {
 	    NORMAL, SAVE, QUIT, FORFEIT;
 	}
 
-	private static Board board = new Board();
+	private static Player player = new Player(new Board());
 	private static BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
 	private static List<List<String>> moveLogs = new ArrayList<>();
-	private static int[] playerScores = new int[2]; // use mod 2 arithmetic to access index while scoring
 	private static PlayState turn = new PlayState();
 	private static SpecialActions specialAction;
 
@@ -31,27 +31,37 @@ public class Main {
     	    	System.exit(0);
 			}
 
+			startRound = -1;
+
     	    // stopped in middle of first round
     	    if (resumeRound && moveLogs.size() == 1) {
-				turn = board.replayMoveLog(moveLogs.get(0));
+				turn = player.replayMoveLog(moveLogs.get(0));
+
+				startRound = 1;
 			}
 			// stopped at beginning of second round
             else if (!resumeRound && moveLogs.size() == 1) {
-				board.replayMoveLog(moveLogs.get(0));
+				player.replayMoveLog(moveLogs.get(0));
 				turn.setTurn(BoardStates.DWARF);
+
+				startRound = 2;
 			}
 			// stopped in middle of second round
 			else if (resumeRound && moveLogs.size() == 2) {
-				board.replayMoveLog(moveLogs.get(0));
-				turn = board.replayMoveLog(moveLogs.get(1));
+				player.replayMoveLog(moveLogs.get(0));
+				turn = player.replayMoveLog(moveLogs.get(1));
+
+				startRound = 2;
 			}
 			// full game recovered
 			else if (!resumeRound && moveLogs.size() == 2) {
     	        System.out.println("Full game recovered\n");
-				board.replayMoveLog(moveLogs.get(0));
-				calculateScores(1);
-				board.replayMoveLog(moveLogs.get(1));
-				calculateScores(2);
+				player.replayMoveLog(moveLogs.get(0));
+				player.calculateScores(1);
+				player.replayMoveLog(moveLogs.get(1));
+				player.calculateScores(2);
+
+				startRound = 3;
 			}
 			else {
 				System.out.println("Shut er down Johnny, she's a pumpin mud!");
@@ -59,24 +69,22 @@ public class Main {
 				System.out.println("resumeRound " + resumeRound);
 				System.exit(-999);
 			}
-
-			startRound = moveLogs.size()-1;
 		}
 		else {
-			startRound = 0;
+			startRound = 1;
 		}
 
-		for (int round=startRound; round < 2; round++) {
+		for (int round=startRound; round <= 2; round++) {
 
     	    // don't initialize a new round if we loaded from a file
     		if (!resumeRound) {
-				board.initializeGame();
+				player.initializeGame();
 
-				System.out.printf("Starting round %d\n", round+1);
+				System.out.printf("Starting round %d\n", round);
                 System.out.println("Dwarfs move first");
 			}
 			else {
-				System.out.printf("Resuming round %d\n", round + 1);
+				System.out.printf("Resuming round %d\n", round);
 				System.out.printf("Current turn: %s\n",
 					(turn.getTurn().equals(BoardStates.DWARF)) ? "Dwarfs" : "Trolls");
 			}
@@ -84,7 +92,7 @@ public class Main {
 
 			boolean playing = true;
 			while (playing) {
-				System.out.print(board);
+				System.out.print(player.getBoard());
 
 				specialAction = playNext(turn);
 				switch (specialAction) {
@@ -114,10 +122,11 @@ public class Main {
 			}
 
 			// store scores for the round
-            calculateScores(round);
+            player.calculateScores(round);
 		}
 
 		// determine final score and winner
+        int[] playerScores = player.getScores();
 		System.out.println();
 		for (int i=0; i<2; i++) {
 			System.out.printf("Player %d: %d\n", i+1, playerScores[i]);
@@ -138,50 +147,51 @@ public class Main {
         // initialize or clear current moveLogs
         moveLogs = new ArrayList<>();
 
-		boolean middleOfRound = false;
 		List<String> roundMoveLog;
 
-    	try (BufferedReader input = new BufferedReader(new FileReader(fileName))) {
+		boolean hitMidBlank = false;
+		boolean hitEndBlank = false;
+    	try (Scanner input = new Scanner(new FileReader(fileName))) {
 
-    		for (int round=0; round<2; round++) {
-				roundMoveLog = new ArrayList<>();
-				String currentLine;
+			roundMoveLog = new ArrayList<>();
 
-				// do-while b/c we need to check at least one command in first round
-                // if first round ended due to null, this will be null and we will return the proper middleOfRound status
-				currentLine = input.readLine();
-				if (currentLine==null) {
-					// this if makes it so first round is not added if empty file,
-					// but second round is added if it is empty
-					if (round!=0)
+		 	while (input.hasNextLine()) {
+		 	    String currentLine = input.nextLine();
+
+		 		// if we have hit the 2nd blank but not end of input, then format is wrong
+		 	    if (hitEndBlank)
+		 	    	throw new IOException("File is more than 2 rounds");
+
+		 	    // if 1st blank hit, move to next round, if 2nd mark it for purposes of determining round status
+				if (currentLine.length() == 0) {
+					if (!hitMidBlank) {
+						hitMidBlank = true;
 						moveLogs.add(roundMoveLog);
-                    break;
+						roundMoveLog = new ArrayList<>();
+					} else {
+						hitEndBlank = true;
+                    }
+				} else {
+					roundMoveLog.add(currentLine);
 				}
-				do {
-					// we have found a blank line, move on to next round
-					if (currentLine.length()==0) {
-						middleOfRound = false;
-						break;
-					}
-					else {
-						roundMoveLog.add(currentLine);
-						middleOfRound = true;
-					}
-				} while ((currentLine = input.readLine()) != null);
-
-				// This if makes it so first line is only added if not empty
-					moveLogs.add(roundMoveLog);
 			}
-		}
-		return middleOfRound;
-	}
 
-	private static void calculateScores(int round) {
-		playerScores[round % 2] = board.getNumDwarfs() * 10;
-		playerScores[(round+1) % 2] = board.getNumTrolls() * 40;
+			if (!roundMoveLog.isEmpty())
+				moveLogs.add(roundMoveLog);
+		}
+
+		if (!hitMidBlank)
+			return true;
+    	else if (roundMoveLog.isEmpty())
+    		return false;
+    	else if (!hitEndBlank)
+    		return true;
+    	else
+    		return false;
 	}
 
 	private static SpecialActions playNext(PlayState turn) throws IOException {
+        Board board = player.getBoard();
 		boolean validMove = false;
 		while (!validMove) {
 			if (board.getNumDwarfs() == 0 || board.getNumTrolls() == 0)
@@ -194,22 +204,22 @@ public class Main {
 			// 'H'url by troll must be followed by an 'R'emove of 1 dwarf or more
             // don't allow interface commands to run in this case
             // (only Troll can 'H' so this test is safe)
-			if (board.getLastMove().charAt(0) != 'H') {
+			if (player.getLastMove().charAt(0) != 'H') {
 				if (move.equalsIgnoreCase("exit"))
 					return SpecialActions.QUIT;
 				if (move.equalsIgnoreCase("save")) {
 					return SpecialActions.SAVE;
 				}
 				if (move.equalsIgnoreCase("forfeit")) {
-					char lastCmd = board.getLastMove().charAt(0);
+					char lastCmd = player.getLastMove().charAt(0);
 					if (lastCmd == 'S') {
 						throw new IllegalArgumentException("Can't forfeit mid shove.");
                     }
                     // check if last move allows implicit remove of nothing, if so add it as explicit command and forfeit
 					if (lastCmd == 'M' && turn.getTurn().equals(BoardStates.TROLL)) {
-						int[] oldEndPos = board.notationToPosition(board.getLastMove().substring(5));
+						int[] oldEndPos = board.notationToPosition(player.getLastMove().substring(5));
 						if (board.adjacentToAny(BoardStates.DWARF, oldEndPos)) {
-							board.play(turn, "R");
+							player.play(turn, "R");
 						}
 					}
 					return SpecialActions.FORFEIT;
@@ -217,7 +227,7 @@ public class Main {
 			}
 
 			try {
-				board.play(turn, move);
+				player.play(turn, move);
 				validMove = true;
 			} catch (IllegalArgumentException ex) {
 				System.out.println(ex.getMessage());
@@ -235,6 +245,7 @@ public class Main {
 					out.write(move);
 					out.newLine();
 				}
+				out.newLine();
 			}
 		}
 	}

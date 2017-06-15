@@ -83,13 +83,14 @@ class BoardTest {
         );
 
         Board board = new Board();
-        board.initializeGame();
+        Player player = new Player(board);
+        player.initializeGame();
 
         PlayState turn = new PlayState();
 
         for (moveTestPair move : errorGame) {
             try {
-                board.play(turn, move.move);
+                player.play(turn, move.move);
                 if (move.errorExpected) {
                     System.out.println(board.toString());
                     fail("Illegal move allowed: " + move.move);
@@ -119,7 +120,8 @@ class BoardTest {
         );
 
     Board board = new Board();
-    board.replayMoveLog(moves);
+    Player player = new Player(board);
+    player.replayMoveLog(moves);
     System.out.println(board.toString());
 
     }
