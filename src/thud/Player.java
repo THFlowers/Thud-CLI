@@ -1,7 +1,6 @@
 package thud;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import static java.lang.Math.abs;
@@ -23,24 +22,21 @@ public class Player {
     public void initializeGame() {
         board.initializeBoard();
 
-        board.setNumTrolls(8);
-        board.setNumDwarfs(32);
-
         // Set thud stone in center surrounded by the Trolls
-        board.setAtPosition(new int[]{7, 7}, BoardStates.STONE);
+        board.setAtPosition(new BoardPoint(7, 7), BoardStates.STONE);
         for (int i=6; i<9; i++) {
             for (int j=6; j<9; j++) {
                 if (i!=7 || j!=7)
-                    board.setAtPosition(new int[]{i, j}, BoardStates.TROLL);
+                    board.addTroll(new BoardPoint(i, j));
             }
         }
         // Dwarf Diagonals
         int i=5, j=0;
         for (int count=0; count<6; count++) {
-            board.setAtPosition(new int[]{i, j},  BoardStates.DWARF);
-            board.setAtPosition(new int[]{i, 14-j},  BoardStates.DWARF);
-            board.setAtPosition(new int[]{14-i, j},  BoardStates.DWARF);
-            board.setAtPosition(new int[]{14-i, 14-j},  BoardStates.DWARF);
+            board.addDwarf(new BoardPoint(i, j));
+            board.addDwarf(new BoardPoint(i, 14-j));
+            board.addDwarf(new BoardPoint(14-i, j));
+            board.addDwarf(new BoardPoint(14-i, 14-j));
 
             i--;
             j++;
@@ -52,10 +48,10 @@ public class Player {
             if (i==7)
                 continue;
 
-            board.setAtPosition(new int[]{i, 0},  BoardStates.DWARF);
-            board.setAtPosition(new int[]{i, 14},  BoardStates.DWARF);
-            board.setAtPosition(new int[]{0, i},  BoardStates.DWARF);
-            board.setAtPosition(new int[]{14, i},  BoardStates.DWARF);
+            board.addDwarf(new BoardPoint(i, 0));
+            board.addDwarf(new BoardPoint(i, 14));
+            board.addDwarf(new BoardPoint(0, i));
+            board.addDwarf(new BoardPoint(14, i));
         }
     }
 
@@ -101,9 +97,9 @@ public class Player {
                 // shouldn't get here
                 throw new IllegalArgumentException("Only Trolls can remove in standard Thud!");
 
-            int[][] removePositions = new int[Math.max(order.length-1,0)][];
+            BoardPoint[] removePositions = new BoardPoint[Math.max(order.length-1,0)];
             for (int i=1; i<order.length; i++) {
-                removePositions[i - 1] = board.notationToPosition(order[i]);
+                removePositions[i - 1] = new BoardPoint(order[i]);
             }
 
             removePlay(removePositions);
@@ -118,15 +114,10 @@ public class Player {
 
             char ch = order[0].charAt(0);
 
-            int[] startPos = board.notationToPosition(order[1]);
-            int[] endPos = board.notationToPosition(order[2]);
+            BoardPoint startPos = new BoardPoint(order[1]);
+            BoardPoint endPos   = new BoardPoint(order[2]);
 
-            /* redundant as notationToPosition should generate valid positions, kept in case refactor introduces need
-            if (!positionOnBoard(startPos) || !positionOnBoard(endPos))
-                throw new IllegalArgumentException("Start and end positions must be at valid board positions");
-            */
-
-            if (Arrays.equals(startPos, endPos))
+            if (startPos.equals(endPos))
                 throw new IllegalArgumentException("Movement can't be to the same square");
 
             boolean removeTurn;
@@ -148,7 +139,7 @@ public class Player {
     }
 
     // Troll only special play, assumes this is already checked (as in play() above)
-    private void removePlay(int[][] removePositions) {
+    private void removePlay(BoardPoint[] removePositions) {
         // use log to retrieve last move endPos and command
         // if old command is 'M' or 'R' option capture (empty line after 'R')
         // if old command is 'S' MUST capture at least one dwarf
@@ -172,22 +163,22 @@ public class Player {
         String oldMove = moveLog.get(moveLog.size()-1);
         String[] oldOrder = oldMove.split(" ");
 
-        int[] anchorPos = board.notationToPosition(oldOrder[2]);
+        BoardPoint anchorPos = new BoardPoint(oldOrder[2]);
 
         if (mustCapture && (removePositions.length == 0))
             throw new IllegalArgumentException("You must capture at least one dwarf");
 
-        for (int[] pos : removePositions) {
+        for (BoardPoint pos : removePositions) {
             if (!board.getAtPosition(pos).equals(BoardStates.DWARF))
                 throw new IllegalArgumentException("Not a dwarf");
-            if (abs(anchorPos[0]-pos[0]) > 1 || abs(anchorPos[1]-pos[1]) > 1)
+            if (abs(anchorPos.x-pos.x) > 1 || abs(anchorPos.y-pos.y) > 1)
                 throw new IllegalArgumentException("Dwarf is not adjacent to the troll");
 
             board.removePiece(pos);
         }
     }
 
-    private boolean playDwarf(char command, int[] startPos, int[] endPos) {
+    private boolean playDwarf(char command, BoardPoint startPos, BoardPoint endPos) {
 
         switch (command) {
             case 'M':
@@ -222,7 +213,7 @@ public class Player {
     }
 
     // assumes play validates startPos and endPos
-    private boolean playTroll(char command, int[] startPos, int[] endPos) {
+    private boolean playTroll(char command, BoardPoint startPos, BoardPoint endPos) {
         switch (command) {
             case 'M':
                 if (!board.getAtPosition(startPos).equals(BoardStates.TROLL))
@@ -230,7 +221,7 @@ public class Player {
                 if (!board.getAtPosition(endPos).equals(BoardStates.FREE))
                     throw new IllegalArgumentException("End position is not free");
 
-                if (abs(startPos[0]-endPos[0]) > 1 || abs(startPos[1]-endPos[1]) > 1)
+                if (abs(startPos.x-endPos.x) > 1 || abs(startPos.y-endPos.y) > 1)
                     throw new IllegalArgumentException("Troll must move like chess king");
 
                 board.movePiece(startPos, endPos);
@@ -260,37 +251,37 @@ public class Player {
 
     // assumes valid startPos and endPos (including size and positionOnBoard)
     // assumes rules for endPos are already enforced (Troll land adjacent to Dwarf, Dwarf land on Troll)
-    private boolean distanceAttackCheck(BoardStates turn, int[] startPos, int[] endPos) {
+    private boolean distanceAttackCheck(BoardStates turn, BoardPoint startPos, BoardPoint endPos) {
         // figure out type of line (3 cases), and travel direction
         // then traverse backwards to get max shove/hurl distance
         // then proceed in proper direction to check that there is no blocking piece
         int iStep=0, jStep=0;
-        int[] curPos = Arrays.copyOf(startPos,2);
-        if (startPos[0]==endPos[0])
-            jStep = (startPos[1]<endPos[1]) ? 1 : -1;
-        else if (startPos[1]==endPos[1])
-            iStep = (startPos[0]<endPos[0]) ? 1 : -1;
-        else if (Math.abs((startPos[1]-endPos[1])/(startPos[0]-endPos[0])) == 1) {
-            iStep = (startPos[0]<endPos[0]) ? 1 : -1;
-            jStep = (startPos[1]<endPos[1]) ? 1 : -1;
+        BoardPoint curPos = new BoardPoint(startPos);
+        if (startPos.x==endPos.x)
+            jStep = (startPos.y<endPos.y) ? 1 : -1;
+        else if (startPos.y==endPos.y)
+            iStep = (startPos.x<endPos.x) ? 1 : -1;
+        else if (Math.abs((startPos.y-endPos.y)/(startPos.x-endPos.x)) == 1) {
+            iStep = (startPos.x<endPos.x) ? 1 : -1;
+            jStep = (startPos.y<endPos.y) ? 1 : -1;
         }
         else return false;
 
         int numInLine = 0;
         do {
-            curPos[0] -= iStep;
-            curPos[1] -= jStep;
+            curPos.x -= iStep;
+            curPos.y -= jStep;
             numInLine++;
         } while(board.getAtPosition(curPos).equals(turn));
 
         if ((numInLine == 1) && turn.equals(BoardStates.TROLL))
             throw new IllegalArgumentException("Shove must be at least 2 trolls");
 
-        curPos = Arrays.copyOf(startPos,2);
+        curPos = new BoardPoint(startPos);
         for (int c = 0; c < numInLine; c++) {
-            curPos[0] += iStep;
-            curPos[1] += jStep;
-            if (Arrays.equals(curPos, endPos))
+            curPos.x += iStep;
+            curPos.y += jStep;
+            if (curPos.equals(endPos))
                 return true;
             if (!board.getAtPosition(curPos).equals(BoardStates.FREE))
                 return false;
