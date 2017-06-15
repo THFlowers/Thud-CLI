@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" build-on-make="true" name="Thud-CLI:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/Thud_CLI_jar</output-path>
+    <root id="archive" name="Thud-CLI.jar">
+      <element id="module-output" name="Thud-CLI" />
+    </root>
+  </artifact>
+</component>

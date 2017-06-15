@@ -24,7 +24,7 @@ public class Main {
     	if (args.length == 1) {
     	    System.out.println("Loading save file, if the game is complete it will be re-scored, if it is incomplete it will resume");
     	    try {
-				resumeRound = loadLogsFromFile(args[0]);
+				resumeRound = loadFile(args[0]);
 			}
 			catch (FileNotFoundException ex) {
     	    	System.out.printf("File %s not found!", args[0]);
@@ -134,7 +134,7 @@ public class Main {
 	}
 
 	// the boolean refers to whether we are in the middle of a round or not
-	private static boolean loadLogsFromFile(String fileName) throws IOException {
+	private static boolean loadFile(String fileName) throws IOException {
         // initialize or clear current moveLogs
         moveLogs = new ArrayList<>();
 
@@ -147,11 +147,15 @@ public class Main {
 				roundMoveLog = new ArrayList<>();
 				String currentLine;
 
-				// do-while b/c we need to check at least one command in current round
+				// do-while b/c we need to check at least one command in first round
                 // if first round ended due to null, this will be null and we will return the proper middleOfRound status
 				currentLine = input.readLine();
 				if (currentLine==null) {
-					break;
+					// this if makes it so first round is not added if empty file,
+					// but second round is added if it is empty
+					if (round!=0)
+						moveLogs.add(roundMoveLog);
+                    break;
 				}
 				do {
 					// we have found a blank line, move on to next round
@@ -165,7 +169,7 @@ public class Main {
 					}
 				} while ((currentLine = input.readLine()) != null);
 
-				if (roundMoveLog.size() != 0)
+				// This if makes it so first line is only added if not empty
 					moveLogs.add(roundMoveLog);
 			}
 		}
@@ -183,6 +187,7 @@ public class Main {
 			if (board.getNumDwarfs() == 0 || board.getNumTrolls() == 0)
 				return SpecialActions.FORFEIT;
 
+			System.out.println();
 			System.out.print((turn.getTurn().equals(BoardStates.DWARF)) ? "Dwarfs: " : "Trolls: ");
 			String move = in.readLine();
 
@@ -231,8 +236,6 @@ public class Main {
 					out.newLine();
 				}
 			}
-			// empty line between rounds
-			out.newLine();
 		}
 	}
 
@@ -242,6 +245,7 @@ public class Main {
 			System.out.print("Save? [Y/N] ");
 			String input = in.readLine();
 			if (input.equalsIgnoreCase("Y")) {
+				validInput = true;
 				System.out.print("Filename: ");
 				input = in.readLine();
 				saveFile(input);

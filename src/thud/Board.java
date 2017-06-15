@@ -14,13 +14,13 @@ public class Board {
     private int numTrolls=0, numDwarfs=0;
     private List<String> moveLog = new ArrayList<>();
 
-    Board() {
+    public Board() {
         // set board to empty state (no pieces)
         initializeBoard();
     }
 
     // replay the moves for a single round
-    PlayState replayMoveLog(List<String> moveLog) {
+    public PlayState replayMoveLog(List<String> moveLog) {
         initializeBoard();
         initializeGame();
         PlayState turn = new PlayState();
@@ -79,16 +79,18 @@ public class Board {
                     // Decorate edge of board with column letter
                     if (decorate) {
                         sb.append((char) ('A' + j));
-                        sb.append(" ");
+                        sb.append(' ');
                     }
-                    continue;
                 }
+                else {
 
-                char c = getSymbol(board[i][j]);
-                sb.append(c);
-                sb.append(' ');
+                    char c = getSymbol(board[i][j]);
+                    sb.append(c);
+                    sb.append(' ');
+                }
             }
-            sb.append('\n');
+            if ( !((i==-1 && !decorate) || i==14 ) )
+                sb.append('\n');
         }
         return sb.toString();
     }
@@ -155,7 +157,7 @@ public class Board {
         }
     }
 
-    private BoardStates getAtPosition(int[] pos) {
+    public BoardStates getAtPosition(int[] pos) {
         if ((pos.length != 2) || !positionOnBoard(pos))
             throw new IllegalArgumentException();
 
@@ -386,7 +388,7 @@ public class Board {
     }
 
     // assumes valid pos (including size and positionOnBoard)
-    boolean adjacentToAny(BoardStates state, int[] pos) {
+    public boolean adjacentToAny(BoardStates state, int[] pos) {
         /*
         if (pos.length != 2)
             throw new IllegalArgumentException();
