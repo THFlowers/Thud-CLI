@@ -10,15 +10,20 @@ import static java.lang.Math.abs;
  */
 public class Player {
 
-    Board board;
-    List<String> moveLog = new ArrayList<>();
-    int[] scores = new int[] {0,0}; // use mod 2 arithmetic to access index while scoring
+    private Board board;
+    private List<String> moveLog = new ArrayList<>();
+    private int[] scores = new int[] {0,0}; // use mod 2 arithmetic to access index while scoring
 
     public Player(Board board) {
         this.board = board;
     }
 
-    // set board to initial game state (all pieces in default position)
+    public Player(Player other) {
+        this.board = new Board(other.board);
+        this.moveLog = new ArrayList<>(moveLog);
+    }
+
+    // set board to initial game board (all pieces in default position)
     public void initializeGame() {
         board.initializeBoard();
 
@@ -287,5 +292,58 @@ public class Player {
                 return false;
         }
         return false;
+    }
+
+
+    public ArrayList<BoardPoint> getPossibleMoves(BoardPoint pos) {
+        switch (board.getAtPosition(pos)) {
+            case TROLL:
+                return getPossibleTrollMoves(pos);
+            case DWARF:
+                return getPossibleDwarfMoves(pos);
+            default:
+                return new ArrayList<>();
+        }
+    }
+
+    public ArrayList<BoardPoint> getPossibleTrollMoves(BoardPoint pos) {
+        ArrayList<BoardPoint> points = new ArrayList<>();
+
+        // movement
+        points.addAll(kingMoves(pos));
+
+        return points;
+    }
+
+    public ArrayList<BoardPoint> getPossibleDwarfMoves(BoardPoint pos) {
+        ArrayList<BoardPoint> points = new ArrayList<>();
+
+        // movement
+        points.addAll(kingMoves(pos));
+
+        return points;
+    }
+
+    private ArrayList<BoardPoint> kingMoves(BoardPoint pos) {
+        ArrayList<BoardPoint> points = new ArrayList<>();
+        for (int i = -1; i <= 1; i++) {
+            for (int j = -1; j <= 1; j++) {
+                // ignore pos
+                if (i == 0 && j == 0)
+                    continue;
+                // don't allow pos[0]+i out of bounds
+                if ((pos.x + i < 0) || (pos.x + i > 14))
+                    continue;
+                // don't allow pos[1]+j out of bounds
+                if ((pos.y + j < 0) || (pos.y + j > 14))
+                    continue;
+
+                BoardPoint testPos = new BoardPoint(pos.x + i, pos.y + j);
+
+                if (board.getAtPosition(testPos).equals(BoardStates.FREE))
+                    points.add(testPos);
+            }
+        }
+        return points;
     }
 }

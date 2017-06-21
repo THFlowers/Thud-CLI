@@ -12,6 +12,11 @@ public class PlayState {
         removeTurn = false;
     }
 
+    public PlayState(PlayState other) {
+        this.turn = other.turn;
+        this.removeTurn = other.removeTurn;
+    }
+
     public PlayState(BoardStates turn, boolean removeTurn) {
         this.turn = turn;
         this.removeTurn = removeTurn;

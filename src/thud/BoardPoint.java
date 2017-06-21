@@ -7,7 +7,7 @@ public class BoardPoint {
     int x;
     int y;
 
-    static boolean isOnBoard(int x, int y) {
+    public static boolean isOnBoard(int x, int y) {
         return (!(x<0 || x>14) && !(y<0 || y>14));
     }
 
@@ -30,8 +30,8 @@ public class BoardPoint {
         if (!(1 <= row && row <= 15))
             throw new IllegalArgumentException("Row must be between 1 and 15");
 
-        this.y = row - 1;
-        this.x = col - 'A';
+        this.x = row - 1;
+        this.y = col - 'A';
     }
 
     public int getX() {

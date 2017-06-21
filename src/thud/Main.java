@@ -8,7 +8,7 @@ import java.util.Scanner;
 public class Main {
 
 	private enum SpecialActions {
-	    NORMAL, SAVE, QUIT, FORFEIT;
+	    NORMAL, SAVE, QUIT, FORFEIT
 	}
 
 	private static Player player = new Player(new Board());
@@ -86,7 +86,7 @@ public class Main {
 			else {
 				System.out.printf("Resuming round %d\n", round);
 				System.out.printf("Current turn: %s\n",
-					(turn.getTurn().equals(BoardStates.DWARF)) ? "Dwarfs" : "Trolls");
+					(turn.isTurn(BoardStates.DWARF)) ? "Dwarfs" : "Trolls");
 			}
 			resumeRound = false;
 
@@ -185,10 +185,8 @@ public class Main {
 			return true;
     	else if (roundMoveLog.isEmpty())
     		return false;
-    	else if (!hitEndBlank)
-    		return true;
     	else
-    		return false;
+            return !hitEndBlank;
 	}
 
 	private static SpecialActions playNext(PlayState turn) throws IOException {
@@ -199,7 +197,7 @@ public class Main {
 				return SpecialActions.FORFEIT;
 
 			System.out.println();
-			System.out.print((turn.getTurn().equals(BoardStates.DWARF)) ? "Dwarfs: " : "Trolls: ");
+			System.out.print((turn.isTurn(BoardStates.DWARF)) ? "Dwarfs: " : "Trolls: ");
 			String move = in.readLine();
 
 			// 'H'url by troll must be followed by an 'R'emove of 1 dwarf or more
@@ -217,7 +215,7 @@ public class Main {
 						throw new IllegalArgumentException("Can't forfeit mid shove.");
                     }
                     // check if last move allows implicit remove of nothing, if so add it as explicit command and forfeit
-					if (lastCmd == 'M' && turn.getTurn().equals(BoardStates.TROLL)) {
+					if (lastCmd == 'M' && turn.isTurn(BoardStates.TROLL)) {
 						BoardPoint oldEndPos = new BoardPoint(player.getLastMove().substring(5));
 						if (board.adjacentToAny(BoardStates.DWARF, oldEndPos)) {
 							player.play(turn, "R");

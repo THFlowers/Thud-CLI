@@ -13,8 +13,16 @@ public class Board {
     private List<BoardPoint> trolls = new LinkedList<>();
 
     public Board() {
-        // set board to empty state (no pieces)
+        // set board to empty board (no pieces)
         initializeBoard();
+    }
+
+    public Board(Board other) {
+        initializeBoard();
+        for (int i=0; i<15; i++)
+            this.board[i] = Arrays.copyOf(other.board[i], 15);
+        this.dwarfs = new LinkedList<>(other.dwarfs);
+        this.trolls = new LinkedList<>(other.trolls);
     }
 
     public int getNumTrolls() {
@@ -33,7 +41,7 @@ public class Board {
         setAtPosition(pos, BoardStates.DWARF);
     }
 
-    // Set board to empty state, that is set valid and forbidden cells only
+    // Set board to empty board, that is set valid and forbidden cells only
     // This is correct for Koom Valley Thud and regular Thud, thus here and not in Player
     void initializeBoard() {
         for (int i=0; i<15; i++) {
