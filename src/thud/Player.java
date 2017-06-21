@@ -176,7 +176,7 @@ public class Player {
         for (BoardPoint pos : removePositions) {
             if (!board.getAtPosition(pos).equals(BoardStates.DWARF))
                 throw new IllegalArgumentException("Not a dwarf");
-            if (abs(anchorPos.x-pos.x) > 1 || abs(anchorPos.y-pos.y) > 1)
+            if (abs(anchorPos.row -pos.row) > 1 || abs(anchorPos.col -pos.col) > 1)
                 throw new IllegalArgumentException("Dwarf is not adjacent to the troll");
 
             board.removePiece(pos);
@@ -226,7 +226,7 @@ public class Player {
                 if (!board.getAtPosition(endPos).equals(BoardStates.FREE))
                     throw new IllegalArgumentException("End position is not free");
 
-                if (abs(startPos.x-endPos.x) > 1 || abs(startPos.y-endPos.y) > 1)
+                if (abs(startPos.row -endPos.row) > 1 || abs(startPos.col -endPos.col) > 1)
                     throw new IllegalArgumentException("Troll must move like chess king");
 
                 board.movePiece(startPos, endPos);
@@ -262,30 +262,30 @@ public class Player {
         // then proceed in proper direction to check that there is no blocking piece
         int iStep=0, jStep=0;
         BoardPoint curPos = new BoardPoint(startPos);
-        if (startPos.x==endPos.x)
-            jStep = (startPos.y<endPos.y) ? 1 : -1;
-        else if (startPos.y==endPos.y)
-            iStep = (startPos.x<endPos.x) ? 1 : -1;
-        else if (Math.abs((startPos.y-endPos.y)/(startPos.x-endPos.x)) == 1) {
-            iStep = (startPos.x<endPos.x) ? 1 : -1;
-            jStep = (startPos.y<endPos.y) ? 1 : -1;
+        if (startPos.row ==endPos.row)
+            jStep = (startPos.col <endPos.col) ? 1 : -1;
+        else if (startPos.col ==endPos.col)
+            iStep = (startPos.row <endPos.row) ? 1 : -1;
+        else if (Math.abs((startPos.col -endPos.col)/(startPos.row -endPos.row)) == 1) {
+            iStep = (startPos.row <endPos.row) ? 1 : -1;
+            jStep = (startPos.col <endPos.col) ? 1 : -1;
         }
         else return false;
 
         int numInLine = 0;
         do {
-            curPos.x -= iStep;
-            curPos.y -= jStep;
+            curPos.row -= iStep;
+            curPos.col -= jStep;
             numInLine++;
-        } while(board.getAtPosition(curPos).equals(turn));
+        } while(BoardPoint.isOnBoard(curPos.row, curPos.col) && board.getAtPosition(curPos).equals(turn));
 
         if ((numInLine == 1) && turn.equals(BoardStates.TROLL))
             throw new IllegalArgumentException("Shove must be at least 2 trolls");
 
         curPos = new BoardPoint(startPos);
         for (int c = 0; c < numInLine; c++) {
-            curPos.x += iStep;
-            curPos.y += jStep;
+            curPos.row += iStep;
+            curPos.col += jStep;
             if (curPos.equals(endPos))
                 return true;
             if (!board.getAtPosition(curPos).equals(BoardStates.FREE))
@@ -295,36 +295,83 @@ public class Player {
     }
 
 
-    public ArrayList<BoardPoint> getPossibleMoves(BoardPoint pos) {
-        switch (board.getAtPosition(pos)) {
+    public ArrayList<BoardPoint> getPossibleMoves(PlayState turn, BoardPoint pos) {
+        BoardStates side = board.getAtPosition(pos);
+        /*
+        if (!turn.isTurn(side))
+            throw new IllegalArgumentException();
+        */
+
+        switch (side) {
             case TROLL:
-                return getPossibleTrollMoves(pos);
+                return getPossibleTrollMoves(turn, pos);
             case DWARF:
-                return getPossibleDwarfMoves(pos);
+                return getPossibleDwarfMoves(turn, pos);
             default:
                 return new ArrayList<>();
         }
     }
 
-    public ArrayList<BoardPoint> getPossibleTrollMoves(BoardPoint pos) {
-        ArrayList<BoardPoint> points = new ArrayList<>();
+    public ArrayList<BoardPoint> getPossibleTrollMoves(PlayState turn, BoardPoint pos) {
 
-        // movement
-        points.addAll(kingMoves(pos));
+        if (turn.removeTurn) {
+           return kingMovesMatching(pos, BoardStates.DWARF) ;
+        }
+        else {
+            ArrayList<BoardPoint> points = new ArrayList<>();
 
-        return points;
+            // movement
+            points.addAll(kingMoves(pos));
+
+            // shove
+            for (BoardPoint dwarfPos : board.getDwarfs()) {
+                if (distanceAttackCheck(BoardStates.DWARF, pos, dwarfPos))
+                    points.add(dwarfPos);
+            }
+
+            return points;
+        }
     }
 
-    public ArrayList<BoardPoint> getPossibleDwarfMoves(BoardPoint pos) {
+    public ArrayList<BoardPoint> getPossibleDwarfMoves(PlayState turn, BoardPoint pos) {
         ArrayList<BoardPoint> points = new ArrayList<>();
 
         // movement
         points.addAll(kingMoves(pos));
+        for (int i=-1; i<=1; i++) {
+            for (int j=-1; j <= 1; j++) {
+                if (i==0 && j==0)
+                    continue;
+
+                BoardPoint temp = new BoardPoint(pos);
+                temp.row += i;
+                temp.col += j;
+                if (!BoardPoint.isOnBoard(temp.row,temp.col))
+                    continue;
+
+                while (board.getAtPosition(temp).equals(BoardStates.FREE)) {
+                    points.add(new BoardPoint(temp));
+                    temp.row += i;
+                    temp.col += j;
+                    if (!BoardPoint.isOnBoard(temp.row,temp.col))
+                        break;
+                }
+            }
+        }
+
+        // hurl
+        for (BoardPoint trollPos : board.getTrolls()) {
+            if (distanceAttackCheck(BoardStates.DWARF, pos, trollPos))
+                points.add(trollPos);
+        }
 
         return points;
     }
 
     private ArrayList<BoardPoint> kingMoves(BoardPoint pos) {
+        return kingMovesMatching(pos, BoardStates.FREE);
+    }
+    private ArrayList<BoardPoint> kingMovesMatching(BoardPoint pos, BoardStates match) {
         ArrayList<BoardPoint> points = new ArrayList<>();
         for (int i = -1; i <= 1; i++) {
             for (int j = -1; j <= 1; j++) {
@@ -332,15 +379,15 @@ public class Player {
                 if (i == 0 && j == 0)
                     continue;
                 // don't allow pos[0]+i out of bounds
-                if ((pos.x + i < 0) || (pos.x + i > 14))
+                if ((pos.row + i < 0) || (pos.row + i > 14))
                     continue;
                 // don't allow pos[1]+j out of bounds
-                if ((pos.y + j < 0) || (pos.y + j > 14))
+                if ((pos.col + j < 0) || (pos.col + j > 14))
                     continue;
 
-                BoardPoint testPos = new BoardPoint(pos.x + i, pos.y + j);
+                BoardPoint testPos = new BoardPoint(pos.row + i, pos.col + j);
 
-                if (board.getAtPosition(testPos).equals(BoardStates.FREE))
+                if (board.getAtPosition(testPos).equals(match))
                     points.add(testPos);
             }
         }

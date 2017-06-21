@@ -25,6 +25,7 @@ public class Board {
         this.trolls = new LinkedList<>(other.trolls);
     }
 
+    public List<BoardPoint> getTrolls() { return trolls; }
     public int getNumTrolls() {
         return trolls.size();
     }
@@ -33,6 +34,7 @@ public class Board {
         setAtPosition(pos, BoardStates.TROLL);
     }
 
+    public List<BoardPoint> getDwarfs() { return dwarfs; }
     public int getNumDwarfs() {
         return dwarfs.size();
     }
@@ -120,14 +122,14 @@ public class Board {
         return getAtPosition(new BoardPoint(x,y));
     }
     public BoardStates getAtPosition(BoardPoint pos) {
-        return board[pos.x][pos.y];
+        return board[pos.row][pos.col];
     }
 
     void setAtPosition(int x, int y, BoardStates state) {
         setAtPosition(new BoardPoint(x,y), state);
     }
     void setAtPosition(BoardPoint pos, BoardStates state) {
-        board[pos.x][pos.y] = state;
+        board[pos.row][pos.col] = state;
     }
 
     // assumes valid pos (including size and positionOnBoard)
@@ -139,13 +141,13 @@ public class Board {
                 if (i==0 && j==0)
                     continue;
                 // don't allow pos[0]+i out of bounds
-                if ((pos.x+i < 0) || (pos.x+i > 14))
+                if ((pos.row +i < 0) || (pos.row +i > 14))
                     continue;
                 // don't allow pos[1]+j out of bounds
-                if ((pos.y+j < 0) || (pos.y+j > 14))
+                if ((pos.col +j < 0) || (pos.col +j > 14))
                     continue;
 
-                BoardPoint testPos = new BoardPoint(pos.x+i, pos.y+j);
+                BoardPoint testPos = new BoardPoint(pos.row +i, pos.col +j);
 
                 if (getAtPosition(testPos).equals(state))
                     return true;
@@ -156,9 +158,9 @@ public class Board {
 
     // assumes valid startPos and endPos (including size and positionOnBoard)
     public boolean positionsAreLinear(BoardPoint startPos, BoardPoint endPos) {
-        return (startPos.x==endPos.x) ||
-               (startPos.y==endPos.y) ||
-               (Math.abs((startPos.y-endPos.y)/(startPos.x-endPos.x)) == 1);
+        return (startPos.row ==endPos.row) ||
+               (startPos.col ==endPos.col) ||
+               (Math.abs((startPos.col -endPos.col)/(startPos.row -endPos.row)) == 1);
     }
 
     public void movePiece(BoardPoint startPos, BoardPoint endPos) {

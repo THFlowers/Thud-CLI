@@ -58,8 +58,7 @@ public class Main {
 			while (playing) {
 				System.out.print(player.getBoard());
 
-				specialAction = playNext(turn);
-				switch (specialAction) {
+				switch (specialAction = playNext(turn)) {
 					case NORMAL:
 						break;
 					case QUIT:

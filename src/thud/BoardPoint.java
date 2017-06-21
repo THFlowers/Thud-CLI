@@ -4,22 +4,22 @@ package thud;
  * Created by Thai Flowers on 6/15/2017.
  */
 public class BoardPoint {
-    int x;
-    int y;
+    int row;
+    int col;
 
     public static boolean isOnBoard(int x, int y) {
         return (!(x<0 || x>14) && !(y<0 || y>14));
     }
 
     public BoardPoint(BoardPoint bp) {
-        this.x = bp.x;
-        this.y = bp.y;
+        this.row = bp.row;
+        this.col = bp.col;
     }
-    public BoardPoint(int x, int y) {
-        if (!isOnBoard(x,y))
+    public BoardPoint(int row, int col) {
+        if (!isOnBoard(row, col))
             throw new IllegalArgumentException();
-        this.x=x;
-        this.y=y;
+        this.row = row;
+        this.col = col;
     }
     public BoardPoint(String s) {
         char col = Character.toUpperCase(s.charAt(0));
@@ -30,28 +30,35 @@ public class BoardPoint {
         if (!(1 <= row && row <= 15))
             throw new IllegalArgumentException("Row must be between 1 and 15");
 
-        this.x = row - 1;
-        this.y = col - 'A';
+        this.row = row - 1;
+        this.col = col - 'A';
     }
 
-    public int getX() {
-        return x;
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append((char)(col+'A'));
+        sb.append(row+1);
+        return sb.toString();
     }
 
-    public void setX(int x) {
-        if (!isOnBoard(x, y))
+    public int getRow() {
+        return row;
+    }
+
+    public void setRow(int row) {
+        if (!isOnBoard(row, col))
             throw new IllegalArgumentException();
-        this.x = x;
+        this.row = row;
     }
 
-    public int getY() {
-        return y;
+    public int getCol() {
+        return col;
     }
 
-    public void setY(int y) {
-        if (!isOnBoard(x, y))
+    public void setCol(int col) {
+        if (!isOnBoard(row, col))
             throw new IllegalArgumentException();
-        this.y = y;
+        this.col = col;
     }
 
     @Override
@@ -61,7 +68,7 @@ public class BoardPoint {
 
         BoardPoint that = (BoardPoint) o;
 
-        if (x != that.x) return false;
-        return y == that.y;
+        if (row != that.row) return false;
+        return col == that.col;
     }
 }

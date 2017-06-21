@@ -15,16 +15,16 @@ public class RecordsManager {
     List<List<String>> moveLogs = new ArrayList<>();
     boolean resumeRound = false;
 
-    List<List<String>> getMoveLogs() {
+    public List<List<String>> getMoveLogs() {
         return moveLogs;
     }
 
-    boolean resumeRound() {
+    public boolean resumeRound() {
         return resumeRound;
     }
 
     // file format is round1_moves empty_line round2_moves
-    void saveFile(String fileName) throws IOException {
+    public void saveFile(String fileName) throws IOException {
         try (BufferedWriter out = new BufferedWriter(new FileWriter(fileName))) {
             for (List<String> log : moveLogs) {
                 for (String move : log) {
@@ -36,7 +36,7 @@ public class RecordsManager {
         }
     }
 
-    void loadFile(String fileName) throws IOException {
+    public void loadFile(String fileName) throws IOException {
         // initialize or clear current moveLogs
         moveLogs = new ArrayList<>();
 
@@ -81,7 +81,7 @@ public class RecordsManager {
             resumeRound = !hitEndBlank;
     }
 
-    int replayRecords(Player player, PlayState turn) {
+    public int replayRecords(Player player, PlayState turn) {
         int startRound = 0;
         // stopped in middle of first round
         if (resumeRound && moveLogs.size() == 1) {
