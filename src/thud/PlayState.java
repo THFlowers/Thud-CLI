@@ -13,13 +13,17 @@ public class PlayState {
     }
 
     public PlayState(PlayState other) {
-        this.turn = other.turn;
-        this.removeTurn = other.removeTurn;
+        this.set(other);
     }
 
     public PlayState(BoardStates turn, boolean removeTurn) {
         this.turn = turn;
         this.removeTurn = removeTurn;
+    }
+
+    public void set(PlayState other) {
+        this.turn = other.turn;
+        this.removeTurn = other.removeTurn;
     }
 
     public void alternateTurn() {
@@ -47,5 +51,4 @@ public class PlayState {
     public void setRemoveTurn(boolean removeTurn) {
         this.removeTurn = removeTurn;
     }
-
 }
