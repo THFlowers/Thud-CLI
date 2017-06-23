@@ -5,7 +5,7 @@ import java.io.*;
 public class Main {
 
 	private enum SpecialActions {
-	    NORMAL, SAVE, QUIT, FORFEIT
+		NORMAL, SAVE, QUIT, FORFEIT
 	}
 
 	private static Player player = new Player(new Board());
@@ -14,20 +14,21 @@ public class Main {
 	private static RecordsManager recordsManager = new RecordsManager();
 	private static SpecialActions specialAction;
 
-    public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws IOException {
 
-    	int startRound = 1;
-    	if (args.length == 1) {
-    	    System.out.println("Loading save file, if the game is complete it will be re-scored, if it is incomplete it will resume");
-    	    try {
+		int startRound = 1;
+		if (args.length == 1) {
+			System.out.println("Loading save file, if the game is complete it will be re-scored, if it is incomplete it will resume");
+			try {
 				recordsManager.loadFile(args[0]);
 			}
 			catch (FileNotFoundException ex) {
-    	    	System.out.printf("File %s not found!", args[0]);
-    	    	System.exit(0);
+				System.out.printf("File %s not found!", args[0]);
+				System.exit(0);
 			}
 
-			startRound = recordsManager.replayRecords(player, turn);
+			recordsManager.replayRecords(player, turn);
+			startRound = recordsManager.getCurrentRound();
 			if (startRound <= 0) {
 				System.out.println("Shut er down Johnny, she's a pumpin mud!");
 				System.out.println("moveLogs.size() " + recordsManager.getMoveLogs().size());
@@ -41,17 +42,19 @@ public class Main {
 
 		for (int round=startRound; round <= 2; round++) {
 
-    	    // don't initialize a new round if we loaded from a file
-    		if (!recordsManager.resumeRound()) {
-				player.initializeGame();
+			// don't initialize a new round if we loaded from a file
+			if (!recordsManager.resumeRound()) {
+				turn = player.initializeGame();
+				recordsManager.addRound(player);
 
 				System.out.printf("Starting round %d\n", round);
-                System.out.println("Dwarfs move first");
+				System.out.println("Dwarfs move first");
 			}
 			else {
 				System.out.printf("Resuming round %d\n", round);
 				System.out.printf("Current turn: %s\n",
 					(turn.isTurn(BoardStates.DWARF)) ? "Dwarfs" : "Trolls");
+				recordsManager.setResumeRound(false);
 			}
 
 			boolean playing = true;
@@ -63,16 +66,16 @@ public class Main {
 						break;
 					case QUIT:
 						// don't allow saving if first round and empty moveLog
-					    if ( !(recordsManager.getMoveLogs().size() == 0 && round == 0) ) {
+						if ( !(recordsManager.getMoveLogs().size() == 0 && round == 0) ) {
 							savePrompt();
 						}
 						System.exit(0);
 						break;
 					case SAVE:
-                        if ( (recordsManager.getMoveLogs().size() == 0 && round == 0) ) {
-                           System.out.println("Nothing to save!");
-                        }
-                        else {
+						if ( (recordsManager.getMoveLogs().size() == 0 && round == 0) ) {
+						   System.out.println("Nothing to save!");
+						}
+						else {
 							System.out.print("Filename: ");
 							String input = in.readLine();
 							recordsManager.saveFile(input);
@@ -85,11 +88,11 @@ public class Main {
 			}
 
 			// store scores for the round
-            player.calculateScores(round);
+			player.calculateScores(round);
 		}
 
 		// determine final score and winner
-        int[] playerScores = player.getScores();
+		int[] playerScores = player.getScores();
 		System.out.println();
 		for (int i=0; i<2; i++) {
 			System.out.printf("Player %d: %d\n", i+1, playerScores[i]);
@@ -103,11 +106,11 @@ public class Main {
 			System.out.println("Game was a draw");
 
 		if (startRound!=3)
-            savePrompt();
+			savePrompt();
 	}
 
 	private static SpecialActions playNext(PlayState turn) throws IOException {
-        Board board = player.getBoard();
+		Board board = player.getBoard();
 		boolean validMove = false;
 		while (!validMove) {
 			if (board.getNumDwarfs() == 0 || board.getNumTrolls() == 0)
@@ -118,7 +121,7 @@ public class Main {
 			String move = in.readLine();
 
 			// don't allow interface commands to run if a mandatory remove is in progress (could forfeit)
-            // no need to check for troll (under default rules) as only they can remove,
+			// no need to check for troll (under default rules) as only they can remove,
 			// if using other rules then this should still be valid
 			if (!player.mustRemove()) {
 				if (move.equalsIgnoreCase("exit"))
@@ -130,8 +133,8 @@ public class Main {
 					char lastCmd = player.getLastMove().charAt(0);
 					if (lastCmd == 'S') {
 						throw new IllegalArgumentException("Can't forfeit mid shove.");
-                    }
-                    // check if last move allows implicit remove of nothing, if so add it as explicit command and forfeit
+					}
+					// check if last move allows implicit remove of nothing, if so add it as explicit command and forfeit
 					if (lastCmd == 'M' && turn.isTurn(BoardStates.TROLL)) {
 						BoardPoint oldEndPos = new BoardPoint(player.getLastMove().substring(5));
 						if (board.adjacentToAny(BoardStates.DWARF, oldEndPos)) {
