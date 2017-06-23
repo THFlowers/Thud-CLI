@@ -117,10 +117,10 @@ public class Main {
 			System.out.print((turn.isTurn(BoardStates.DWARF)) ? "Dwarfs: " : "Trolls: ");
 			String move = in.readLine();
 
-			// 'H'url by troll must be followed by an 'R'emove of 1 dwarf or more
-            // don't allow interface commands to run in this case
-            // (only Troll can 'H' so this test is safe)
-			if (player.getLastMove().charAt(0) != 'H') {
+			// don't allow interface commands to run if a mandatory remove is in progress (could forfeit)
+            // no need to check for troll (under default rules) as only they can remove,
+			// if using other rules then this should still be valid
+			if (!player.mustRemove()) {
 				if (move.equalsIgnoreCase("exit"))
 					return SpecialActions.QUIT;
 				if (move.equalsIgnoreCase("save")) {

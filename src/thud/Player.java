@@ -143,8 +143,13 @@ public class Player {
         turn.alternateTurn();
     }
 
-    // Troll only special play, assumes this is already checked (as in play() above)
-    private void removePlay(BoardPoint[] removePositions) {
+    // Assumes already checked for troll turn
+    // Used to be a part of removePlay and was cleaner + more efficient,
+    // but this test needed to be used in removePlay, main (used to use hack), and gui
+    //
+    // Also as implied in a comment in main, this makes more sense to be here than playState
+    // as this is dependent on game rules, whereas PlayState should just hold state data
+    public boolean mustRemove() {
         // use log to retrieve last move endPos and command
         // if old command is 'M' or 'R' option capture (empty line after 'R')
         // if old command is 'S' MUST capture at least one dwarf
@@ -161,12 +166,22 @@ public class Player {
                 mustCapture = true;
                 break;
             default:
-                throw new IllegalArgumentException("Previous move doesn't allow captures!");
+                mustCapture = false;
         }
+        return mustCapture;
+    }
 
+    // Troll only special play, assumes this is already checked (as in play() above)
+    private void removePlay(BoardPoint[] removePositions) {
         // retrieve anchorPos (old endPos)
         String oldMove = moveLog.get(moveLog.size()-1);
         String[] oldOrder = oldMove.split(" ");
+
+        char oldCommand = oldOrder[0].charAt(0);
+        if (!(oldCommand=='M' || oldCommand=='R' || oldCommand=='S'))
+            throw new IllegalArgumentException("Previous move doesn't allow captures!");
+
+        boolean mustCapture = mustRemove();
 
         BoardPoint anchorPos = new BoardPoint(oldOrder[2]);
 
@@ -176,7 +191,7 @@ public class Player {
         for (BoardPoint pos : removePositions) {
             if (!board.getAtPosition(pos).equals(BoardStates.DWARF))
                 throw new IllegalArgumentException("Not a dwarf");
-            if (abs(anchorPos.row -pos.row) > 1 || abs(anchorPos.col -pos.col) > 1)
+            if (abs(anchorPos.row - pos.row) > 1 || abs(anchorPos.col - pos.col) > 1)
                 throw new IllegalArgumentException("Dwarf is not adjacent to the troll");
 
             board.removePiece(pos);
