@@ -12,32 +12,58 @@ public class Main {
 	private static BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
 	private static PlayState turn = new PlayState();
 	private static RecordsManager recordsManager = new RecordsManager();
-	private static SpecialActions specialAction;
+	private static SpecialActions specialAction = SpecialActions.NORMAL;
 
 	public static void main(String[] args) throws IOException {
 
 		int startRound = 1;
-		if (args.length == 1) {
-			System.out.println("Loading save file, if the game is complete it will be re-scored, if it is incomplete it will resume");
-			try {
-				recordsManager.loadFile(args[0]);
-			}
-			catch (FileNotFoundException ex) {
-				System.out.printf("File %s not found!", args[0]);
-				System.exit(0);
-			}
+		boolean player2ai = false;
 
-			recordsManager.replayRecords(player, turn);
-			startRound = recordsManager.getCurrentRound();
-			if (startRound <= 0) {
-				System.out.println("Shut er down Johnny, she's a pumpin mud!");
-				System.out.println("moveLogs.size() " + recordsManager.getMoveLogs().size());
-				System.out.println("resumeRound " + recordsManager.resumeRound);
-				System.exit(-999);
+		boolean loadedFile = false;
+		for (String arg : args) {
+			if (arg.charAt(0) == '-') {
+				if (arg.equals("-a")) {
+				    player2ai = true;
+				}
+				else {
+					System.err.println("Proper Usage: thud -a | file.txt where -a enables ai opponent or restore human v human file");
+					System.exit(0);
+				}
+
 			}
-			else if (startRound==3) {
-				System.out.println("Full game recovered\n");
+			else {
+				if (loadedFile) {
+					System.err.println("Proper Usage: ");
+					System.exit(0);
+				}
+				else
+					loadedFile = true;
+
+				System.out.println("Loading save file, if the game is complete it will be re-scored, if it is incomplete it will resume");
+				try {
+					recordsManager.loadFile(args[0]);
+				} catch (FileNotFoundException ex) {
+					System.out.printf("File %s not found!", args[0]);
+					System.exit(0);
+				}
+
+				recordsManager.replayRecords(player, turn);
+				startRound = recordsManager.getCurrentRound();
+				if (startRound <= 0) {
+					System.out.println("Shut er down Johnny, she's a pumpin mud!");
+					System.out.println("moveLogs.size() " + recordsManager.getMoveLogs().size());
+					System.out.println("resumeRound " + recordsManager.resumeRound);
+					System.exit(-999);
+				} else if (startRound == 3) {
+					System.out.println("Full game recovered\n");
+				}
 			}
+		}
+
+		MonteCarloPlay ai = null;
+		if (player2ai && loadedFile) {
+			System.err.println("Proper Usage: thud -a | file.txt where -a enables ai opponent or restore human v human file");
+			System.exit(0);
 		}
 
 		for (int round=startRound; round <= 2; round++) {
@@ -46,6 +72,10 @@ public class Main {
 			if (!recordsManager.resumeRound()) {
 				turn = player.initializeGame();
 				recordsManager.addRound(player);
+
+				if (player2ai) {
+					ai = new MonteCarloPlay((round==1) ? BoardStates.TROLL : BoardStates.DWARF);
+				}
 
 				System.out.printf("Starting round %d\n", round);
 				System.out.println("Dwarfs move first");
@@ -60,6 +90,10 @@ public class Main {
 			boolean playing = true;
 			while (playing) {
 				System.out.print(player.getBoard());
+
+				// second round ai plays first
+				if (specialAction == SpecialActions.NORMAL && player2ai && round==2)
+					player.play(turn, ai.selectPlay());
 
 				switch (specialAction = playNext(turn)) {
 					case NORMAL:
@@ -84,6 +118,12 @@ public class Main {
 					case FORFEIT:
 						playing = false;
 						break;
+				}
+
+				// first round ai plays second
+				if (specialAction == SpecialActions.NORMAL && player2ai && round==1) {
+					ai.opponentPlay(player.getLastMove());
+					player.play(turn, ai.selectPlay());
 				}
 			}
 

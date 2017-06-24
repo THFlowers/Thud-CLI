@@ -20,7 +20,7 @@ public class Player {
 
 	public Player(Player other) {
 		this.board = new Board(other.board);
-		this.moveLog = new ArrayList<>(moveLog);
+		this.moveLog = new ArrayList<>(other.moveLog);
 	}
 
 	// set board to initial game board (all pieces in default position)
@@ -152,6 +152,9 @@ public class Player {
 	// Also as implied in a comment in main, this makes more sense to be here than playState
 	// as this is dependent on game rules, whereas PlayState should just hold state data
 	public boolean mustRemove() {
+		if (moveLog.size()==0)
+			return false;
+
 		// use log to retrieve last move endPos and command
 		// if old command is 'M' or 'R' option capture (empty line after 'R')
 		// if old command is 'S' MUST capture at least one dwarf
@@ -305,84 +308,78 @@ public class Player {
 			curPos.col += jStep;
 			if (curPos.equals(endPos))
 				return true;
-			if (!board.getAtPosition(curPos).equals(BoardStates.FREE))
+			if (!BoardPoint.isOnBoard(curPos.row, curPos.col) || !board.getAtPosition(curPos).equals(BoardStates.FREE))
 				return false;
 		}
 		return false;
 	}
 
 
-	public ArrayList<BoardPoint> getPossibleMoves(PlayState turn, BoardPoint pos) {
+	public PossiblePieceMoves getPossiblePieceMoves(PlayState turn, BoardPoint pos) {
 		BoardStates side = board.getAtPosition(pos);
-		/*
-		if (!turn.isTurn(side))
-			throw new IllegalArgumentException();
-		*/
 
 		switch (side) {
 			case TROLL:
-				return getPossibleTrollMoves(turn, pos);
+				return getPossibleTrollPieceMoves(turn, pos);
 			case DWARF:
-				return getPossibleDwarfMoves(turn, pos);
+				return getPossibleDwarfPieceMoves(turn, pos);
 			default:
-				return new ArrayList<>();
+				return new PossiblePieceMoves(pos, null, null, null, false);
 		}
 	}
 
-	public ArrayList<BoardPoint> getPossibleTrollMoves(PlayState turn, BoardPoint pos) {
+	public PossiblePieceMoves getPossibleTrollPieceMoves(PlayState turn, BoardPoint pos) {
+		ArrayList<BoardPoint> move = new ArrayList<>();
+		ArrayList<BoardPoint> shove = new ArrayList<>();
 
-		if (turn.removeTurn) {
-		   return kingMovesMatching(pos, BoardStates.DWARF) ;
-		}
-		else {
-			ArrayList<BoardPoint> points = new ArrayList<>();
+		// movement
+		move.addAll(kingMoves(pos));
 
-			// movement
-			points.addAll(kingMoves(pos));
+		// shove
+		for (int i=-1; i<=1; i++) {
+			for (int j=-1; j <= 1; j++) {
+				if (i==0 && j==0)
+					continue;
 
-			// shove
-			for (int i=-1; i<=1; i++) {
-				for (int j=-1; j <= 1; j++) {
-					if (i==0 && j==0)
-						continue;
+				BoardPoint temp = new BoardPoint(pos);
+				int numTrolls;
+				for (numTrolls=1; board.getAtPosition(temp).equals(BoardStates.TROLL); numTrolls++){
 
-					BoardPoint temp = new BoardPoint(pos);
-					int numTrolls;
-					for (numTrolls=1; board.getAtPosition(temp).equals(BoardStates.TROLL); numTrolls++){
+					temp.row -= i;
+					temp.col -= j;
+					if (!BoardPoint.isOnBoard(temp.row, temp.col))
+						break;
+				}
 
-						temp.row -= i;
-						temp.col -= j;
-						if (!BoardPoint.isOnBoard(temp.row, temp.col))
-							break;
-					}
+				if (numTrolls < 2)
+					continue;
 
-					temp = new BoardPoint(pos);
-					if (!BoardPoint.isOnBoard(temp.row+i, temp.col+j))
-						continue;
+				temp = new BoardPoint(pos);
+				if (!BoardPoint.isOnBoard(temp.row+2*i, temp.col+2*j))
+					continue;
+
+				temp.row += i;
+				temp.col += j;
+				for (int steps=1; board.getAtPosition(temp).equals(BoardStates.FREE) && steps<numTrolls; steps++) {
+					if (steps>=2 && board.adjacentToAny(BoardStates.DWARF, temp))
+						shove.add(new BoardPoint(temp));
 
 					temp.row += i;
 					temp.col += j;
-					for (int steps=1; board.getAtPosition(temp).equals(BoardStates.FREE) && steps<numTrolls; steps++) {
-					    if (board.adjacentToAny(BoardStates.DWARF, temp))
-                            points.add(new BoardPoint(temp));
-
-						temp.row += i;
-						temp.col += j;
-						if (!BoardPoint.isOnBoard(temp.row,temp.col))
-							break;
-					}
+					if (!BoardPoint.isOnBoard(temp.row,temp.col))
+						break;
 				}
 			}
-
-			return points;
 		}
+
+		return new PossiblePieceMoves(pos, move, shove, null, false);
 	}
 
-	public ArrayList<BoardPoint> getPossibleDwarfMoves(PlayState turn, BoardPoint pos) {
-		ArrayList<BoardPoint> points = new ArrayList<>();
+	public PossiblePieceMoves getPossibleDwarfPieceMoves(PlayState turn, BoardPoint pos) {
+		ArrayList<BoardPoint> move = new ArrayList<>();
+		ArrayList<BoardPoint> hurl = new ArrayList<>();
 
 		// movement
-		//points.addAll(kingMoves(pos)); // redundant
 		for (int i=-1; i<=1; i++) {
 			for (int j=-1; j <= 1; j++) {
 				if (i==0 && j==0)
@@ -395,7 +392,7 @@ public class Player {
 					continue;
 
 				while (board.getAtPosition(temp).equals(BoardStates.FREE)) {
-					points.add(new BoardPoint(temp));
+					move.add(new BoardPoint(temp));
 					temp.row += i;
 					temp.col += j;
 					if (!BoardPoint.isOnBoard(temp.row,temp.col))
@@ -407,10 +404,10 @@ public class Player {
 		// hurl
 		for (BoardPoint trollPos : board.getTrolls()) {
 			if (distanceAttackCheck(BoardStates.DWARF, pos, trollPos))
-				points.add(trollPos);
+				hurl.add(trollPos);
 		}
 
-		return points;
+		return new PossiblePieceMoves(pos, move, hurl, null, false);
 	}
 
 	private ArrayList<BoardPoint> kingMoves(BoardPoint pos) {
@@ -437,5 +434,23 @@ public class Player {
 			}
 		}
 		return points;
+	}
+
+	public List<String> getPossibleMoves(PlayState turn) {
+		PossibleMoves allMoves = new PossibleMoves(turn);
+
+		if (turn.isRemoveTurn()) {
+			String oldMove = moveLog.get(moveLog.size()-1);
+			String[] oldOrder = oldMove.split(" ");
+			BoardPoint oldPos = new BoardPoint(oldOrder[2]);
+			allMoves.addPieceMoves(new PossiblePieceMoves(oldPos, null, null, kingMovesMatching(oldPos, BoardStates.DWARF), true));
+			return allMoves.getEncodedMoves();
+		}
+
+		List<BoardPoint> pieces = (turn.isTurn(BoardStates.DWARF)) ? board.getDwarfs() : board.getTrolls();
+		for (BoardPoint piece : pieces) {
+			allMoves.addPieceMoves(getPossiblePieceMoves(turn, piece));
+		}
+		return allMoves.getEncodedMoves();
 	}
 }
