@@ -80,7 +80,7 @@ public class Player {
 		return (size == 0) ? " " : moveLog.get(size-1);
 	}
 
-	void calculateScores(int round) {
+	public void calculateScores(int round) {
 		if (round<=0 || round>2)
 			throw new IllegalArgumentException();
 
@@ -341,9 +341,37 @@ public class Player {
 			points.addAll(kingMoves(pos));
 
 			// shove
-			for (BoardPoint dwarfPos : board.getDwarfs()) {
-				if (distanceAttackCheck(BoardStates.DWARF, pos, dwarfPos))
-					points.add(dwarfPos);
+			for (int i=-1; i<=1; i++) {
+				for (int j=-1; j <= 1; j++) {
+					if (i==0 && j==0)
+						continue;
+
+					BoardPoint temp = new BoardPoint(pos);
+					int numTrolls;
+					for (numTrolls=1; board.getAtPosition(temp).equals(BoardStates.TROLL); numTrolls++){
+
+						temp.row -= i;
+						temp.col -= j;
+						if (!BoardPoint.isOnBoard(temp.row, temp.col))
+							break;
+					}
+
+					temp = new BoardPoint(pos);
+					if (!BoardPoint.isOnBoard(temp.row+i, temp.col+j))
+						continue;
+
+					temp.row += i;
+					temp.col += j;
+					for (int steps=1; board.getAtPosition(temp).equals(BoardStates.FREE) && steps<numTrolls; steps++) {
+					    if (board.adjacentToAny(BoardStates.DWARF, temp))
+                            points.add(new BoardPoint(temp));
+
+						temp.row += i;
+						temp.col += j;
+						if (!BoardPoint.isOnBoard(temp.row,temp.col))
+							break;
+					}
+				}
 			}
 
 			return points;
@@ -354,7 +382,7 @@ public class Player {
 		ArrayList<BoardPoint> points = new ArrayList<>();
 
 		// movement
-		points.addAll(kingMoves(pos));
+		//points.addAll(kingMoves(pos)); // redundant
 		for (int i=-1; i<=1; i++) {
 			for (int j=-1; j <= 1; j++) {
 				if (i==0 && j==0)

@@ -14,7 +14,7 @@ import java.util.Scanner;
 public class RecordsManager {
 	List<List<String>> moveLogs = new ArrayList<>();
 	boolean resumeRound = false;
-	int currentRound;
+	int currentRound = 0;
 
 	public List<List<String>> getMoveLogs() {
 		return moveLogs;
