@@ -3,6 +3,11 @@ package thud;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
+/*
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+*/
 
 /**
  * Created by Thai Flowers on 6/16/2017.
@@ -10,8 +15,20 @@ import java.util.Random;
  * Based on:
  *     https://jeffbradberry.com/posts/2015/09/intro-to-monte-carlo-tree-search/
  *     https://en.wikipedia.org/wiki/Monte_Carlo_tree_search
+ *
+ * Background playOut thread was blazing fast and no exceptions, but requires gigs of ram
+ * Even with holding the root node and its children, and not the whole tree
+ *
+ * I could modify this to add nodes when a move is unsimulated with a playOut(move)
+ * but as it stands, the delay caused by completing playOuts for each leaf of the root branch
+ * isn't too long and makes it feel like the ai is thinking (though it is dumber than the threaded version)
+ *
  */
 public class MonteCarloPlay {
+	static final int MAX_SIM_MOVES = 12;
+	//final Lock lock = new ReentrantLock();
+	//final Condition runningPlayout = lock.newCondition();
+
 	class MonteCarloNode {
 		int wins;
 		int visits;
@@ -42,92 +59,142 @@ public class MonteCarloPlay {
 		}
 
 		double score() {
-				return (((double)wins) / ((double)visits)) + 2*Math.sqrt(2*Math.log(numPlayouts)/visits);
+			int c;
+			if (this.playState.isTurn(BoardStates.DWARF))
+				c = 1;
+			else
+				c = 2000;
+
+			return (((double)wins) / ((double)visits)) + c*Math.sqrt(Math.log((double)numPlayouts)/(double)visits);
 		}
 	}
 
+	//boolean destroy = false;
 	Random rand = new Random();
 	int numPlayouts = 0;
 	MonteCarloNode root = new MonteCarloNode("", null);
-	MonteCarloNode current = root;
 	BoardStates side;
 
-	MonteCarloPlay(BoardStates side){
+	public MonteCarloPlay(BoardStates side){
 		this.side = side;
-		// since dwarfs go first, be sure to generate nodes
-		// for player 1 move so we can move there for our turn
-		if (this.side == BoardStates.TROLL) {
-			for (int i = 0; i < 4000; i++) {
+		/*
+		Runnable playoutLoop = () -> {
+			for (long i=0; i<(long)Math.pow(10, 5); i++) {
 				playOut();
-				if (i%300==0)
-					System.out.printf("\r%d", i);
+				lock.lock();
+				if (destroy) {
+					lock.unlock();
+					break;
+				}
+				lock.unlock();
 			}
-			System.out.println();
-		}
+		};
+		new Thread(playoutLoop).start();
+		*/
 	}
 
+	/*
+	public void destroy() {
+		lock.lock();
+		destroy = true;
+		root = null;
+		lock.unlock();
+	}
+	*/
+
 	void opponentPlay(String move) {
-		for (MonteCarloNode child : current.children)
+		//lock.lock();
+		//try {
+		while (root.children == null || root.children.size() < root.possibleMoves.size())
+			playOut();
+			//runningPlayout.awaitUninterruptibly();
+		for (MonteCarloNode child : root.children)
 			if (child.player.getLastMove().equals(move))
-				current = child;
+				root = child;
+		/*
+		} finally {
+			lock.unlock();
+		}
+		*/
 	}
 
 	String selectPlay() {
-		for (int i = 0; i < 1000; i++)
+		/*
+		String move;
+		lock.lock();
+		try {
+		*/
+		while (root.children == null || root.children.size() < root.possibleMoves.size()) {
+			//runningPlayout.awaitUninterruptibly();
 			playOut();
+		}
 
 		MonteCarloNode bestChoice = null;
-		for (MonteCarloNode child : current.children) {
+		for (MonteCarloNode child : root.children) {
 			if (bestChoice == null)
 				bestChoice = child;
 			else if (child.score() > bestChoice.score())
 				bestChoice = child;
 		}
 
-		current = bestChoice;
-		return current.player.getLastMove();
+		root = bestChoice;
+		return root.player.getLastMove();
+		/*
+		} finally {
+			lock.unlock();
+		}
+
+		return move;
+		*/
 	}
 
 	void playOut() {
+		/*
+		lock.lock();
+		try {
+			if (destroy) {
+				return;
+			}
+		*/
+
 		numPlayouts++;
-		MonteCarloNode temp = current;
+		MonteCarloNode current = root;
 
 		// Selection
-		while (temp.children != null && temp.children.size() > 0 && temp.children.size() == temp.possibleMoves.size()) {
-			MonteCarloNode bestChoice = temp.children.get(0);
-			for (int i=1; i<temp.children.size(); i++) {
-				MonteCarloNode curChild = temp.children.get(i);
+		while (current.children != null && current.children.size() == current.possibleMoves.size()) {
+			MonteCarloNode bestChoice = current.children.get(0);
+			for (int i = 1; i < current.children.size(); i++) {
+				MonteCarloNode curChild = current.children.get(i);
 				if (curChild.score() > bestChoice.score())
 					bestChoice = curChild;
 			}
-			temp = bestChoice;
+			current = bestChoice;
 		}
 
 		// Expansion
-		// if current node is null then allot memory
-		if (temp.children == null)
-			temp.children = new LinkedList<>();
+		if (current.children == null)
+			current.children = new LinkedList<>();
 
 		// get all possible moves and remove already explored nodes
-		List<String> moves = temp.player.getPossibleMoves(temp.playState);
-		for (MonteCarloNode child : temp.children) {
-			for (int i=0; i<moves.size(); i++)
+		List<String> moves = current.player.getPossibleMoves(current.playState);
+		for (MonteCarloNode child : current.children) {
+			for (int i = 0; i < moves.size(); i++)
 				if (moves.get(i).equals(child.player.getLastMove()))
 					moves.remove(i);
 		}
 
 		// choose a move at random from unexplored
-		if (moves.size()==0) {
+		if (moves.size() == 0) {
 			return;
 		}
 		String move = moves.get(rand.nextInt(moves.size()));
-		MonteCarloNode newNode = new MonteCarloNode(move, temp);
-		temp.children.add(newNode);
+		MonteCarloNode newNode = new MonteCarloNode(move, current);
+		current.children.add(newNode);
 
 		// simulation
-		Player simulation  = new Player(newNode.player);
+		Player simulation = new Player(newNode.player);
 		PlayState simState = new PlayState(newNode.playState);
-		while (true) {
+		for (int i = 0; i < MAX_SIM_MOVES; i++) {
 
 			List<String> simMoves = simulation.getPossibleMoves(simState);
 			move = simMoves.get(rand.nextInt(simMoves.size()));
@@ -136,25 +203,33 @@ public class MonteCarloPlay {
 			if (simState.isTurn(BoardStates.DWARF)) {
 				if (simulation.getBoard().getNumDwarfs() < 2)
 					break;
-			}
-			else {
+			} else {
 				if (simulation.getBoard().getNumTrolls() < 3)
 					break;
 			}
 		}
 
-		// backprop
-		int winsInc;
-		if (simState.isTurn(this.side))
-			winsInc = 1;
-		else
-			winsInc = -1;
+		simulation.calculateScores(1);
+		int[] scores = simulation.getScores();
 
-		temp = newNode;
-		while (temp != root) {
-			temp.wins += winsInc;
-			temp.visits += 1;
-			temp = temp.parent;
+		// backprop
+		int winsInc = 0;
+		if (side == BoardStates.DWARF)
+			winsInc = (scores[0] > scores[1]) ? 1 : -1;
+		else //if (side == BoardStates.TROLL)
+			winsInc = (scores[0] < scores[1]) ? 1 : -1;
+
+		current = newNode;
+		while (current != root) {
+			current.wins += winsInc;
+			current.visits += 1;
+			current = current.parent;
 		}
+		/*
+		} finally {
+			runningPlayout.signal();
+			lock.unlock();
+		}
+		*/
 	}
 }

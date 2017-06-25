@@ -23,7 +23,7 @@ public class Main {
 		for (String arg : args) {
 			if (arg.charAt(0) == '-') {
 				if (arg.equals("-a")) {
-				    player2ai = true;
+					player2ai = true;
 				}
 				else {
 					System.err.println("Proper Usage: thud -a | file.txt where -a enables ai opponent or restore human v human file");
@@ -73,6 +73,10 @@ public class Main {
 				turn = player.initializeGame();
 				recordsManager.addRound(player);
 
+				/*
+				if (ai != null)
+					ai.destroy();
+				*/
 				if (player2ai) {
 					ai = new MonteCarloPlay((round==1) ? BoardStates.TROLL : BoardStates.DWARF);
 				}
@@ -87,14 +91,29 @@ public class Main {
 				recordsManager.setResumeRound(false);
 			}
 
+			// if ai then for first round human plays first, so skip first ai invocation
+			boolean aiFirstLoopSkip = round==1;
 			boolean playing = true;
 			while (playing) {
-				System.out.print(player.getBoard());
 
-				// second round ai plays first
-				if (specialAction == SpecialActions.NORMAL && player2ai && round==2)
+				// if last human move was specialAction then don't run ai
+				// if last human move requires a removeTurn, then don't run ai
+				// if no ai player enabled, then don't run ai
+				// if round==1 then human plays first, and don't run ai for first play loop
+				if (specialAction==SpecialActions.NORMAL && !turn.isRemoveTurn() && player2ai && !aiFirstLoopSkip) {
+
 					player.play(turn, ai.selectPlay());
+					System.out.print("\nAI plays: "+player.getLastMove());
 
+					if (turn.isRemoveTurn()) {
+						player.play(turn, ai.selectPlay());
+						System.out.print("\nAI plays: " + player.getLastMove());
+					}
+					System.out.println();
+				}
+				aiFirstLoopSkip=false;
+
+				System.out.print(player.getBoard());
 				switch (specialAction = playNext(turn)) {
 					case NORMAL:
 						break;
@@ -120,16 +139,19 @@ public class Main {
 						break;
 				}
 
-				// first round ai plays second
-				if (specialAction == SpecialActions.NORMAL && player2ai && round==1) {
+				if (specialAction==SpecialActions.NORMAL && player2ai)
 					ai.opponentPlay(player.getLastMove());
-					player.play(turn, ai.selectPlay());
-				}
 			}
 
 			// store scores for the round
 			player.calculateScores(round);
 		}
+
+		/*
+		// turn off ai loop
+		if (ai != null)
+			ai.destroy();
+		*/
 
 		// determine final score and winner
 		int[] playerScores = player.getScores();

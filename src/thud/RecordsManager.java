@@ -51,7 +51,7 @@ public class RecordsManager {
 	}
 
 	public void loadFile(String fileName) throws IOException {
-		// initialize or clear current moveLogs
+		// initialize or clear root moveLogs
 		moveLogs = new ArrayList<>();
 
 		List<String> roundMoveLog;
