@@ -332,6 +332,18 @@ public class Player {
 		ArrayList<BoardPoint> move = new ArrayList<>();
 		ArrayList<BoardPoint> shove = new ArrayList<>();
 
+		if (turn.isRemoveTurn()) {
+			String oldMove = moveLog.get(moveLog.size() - 1);
+			String[] oldOrder = oldMove.split(" ");
+			BoardPoint oldPos = new BoardPoint(oldOrder[2]);
+			if (!pos.equals(oldPos))
+				return new PossiblePieceMoves(pos,null, null, null, false);
+			else {
+				List<BoardPoint> positions = kingMovesMatching(pos, BoardStates.DWARF);
+				return new PossiblePieceMoves(pos, null, null, positions, mustRemove());
+			}
+		}
+
 		// movement
 		move.addAll(kingMoves(pos));
 
@@ -443,7 +455,9 @@ public class Player {
 			String oldMove = moveLog.get(moveLog.size()-1);
 			String[] oldOrder = oldMove.split(" ");
 			BoardPoint oldPos = new BoardPoint(oldOrder[2]);
-			allMoves.addPieceMoves(new PossiblePieceMoves(oldPos, null, null, kingMovesMatching(oldPos, BoardStates.DWARF), true));
+			List<BoardPoint> positions = kingMovesMatching(oldPos, BoardStates.DWARF);
+			PossiblePieceMoves removes = new PossiblePieceMoves(oldPos, null, null, positions, true);
+			allMoves.addPieceMoves(removes);
 			return allMoves.getEncodedMoves();
 		}
 

@@ -38,10 +38,8 @@ public class PossibleMoves {
 			}
 			// All or nothing options to simplify AI and approximate user interface (zero, one, or all options)
 			encodedMoves.add(String.format("R %s", allEnds.toString()));
-			/*
 			if (!moves.mustRemove())
-				encodedMoves.add("R");
-			*/
+				encodedMoves.add("R ");
 		}
 	}
 }

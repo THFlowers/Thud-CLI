@@ -160,7 +160,7 @@ public class Board {
 	public boolean positionsAreLinear(BoardPoint startPos, BoardPoint endPos) {
 		return (startPos.row ==endPos.row) ||
 			   (startPos.col ==endPos.col) ||
-			   (Math.abs((startPos.col -endPos.col)/(startPos.row -endPos.row)) == 1);
+			   ( ((double)Math.abs(startPos.col-endPos.col)) / ((double)Math.abs(startPos.row-endPos.row)) == 1);
 	}
 
 	public void movePiece(BoardPoint startPos, BoardPoint endPos) {

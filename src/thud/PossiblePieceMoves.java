@@ -1,5 +1,6 @@
 package thud;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -21,6 +22,13 @@ public class PossiblePieceMoves {
 		// list of all possible remove positions, done all or nothing for simplicity
 		this.remove = remove;
 		this.mustRemove = mustRemove;
+
+		if (this.move == null)
+			this.move = new ArrayList<>();
+		if (this.special == null)
+			this.special = new ArrayList<>();
+		if (this.remove == null)
+			this.remove = new ArrayList<>();
 	}
 
 	// public should only use accessors
