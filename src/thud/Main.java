@@ -70,19 +70,22 @@ public class Main {
 
 			// don't initialize a new round if we loaded from a file
 			if (!recordsManager.resumeRound()) {
+				player = new Player(new Board());
 				turn = player.initializeGame();
 				recordsManager.addRound(player);
 
-				/*
-				if (ai != null)
-					ai.destroy();
-				*/
-				if (player2ai) {
-					ai = new MonteCarloPlay((round==1) ? BoardStates.TROLL : BoardStates.DWARF);
-				}
-
 				System.out.printf("Starting round %d\n", round);
 				System.out.println("Dwarfs move first");
+
+				if (player2ai) {
+					ai = new MonteCarloPlay((round==1) ? BoardStates.TROLL : BoardStates.DWARF);
+
+					// if second round, then do an initial turn for the ai
+					if (round == 2) {
+						player.play(turn, ai.selectPlay()); // first move never has remove
+						System.out.println("\nAI plays: " + player.getLastMove());
+					}
+				}
 			}
 			else {
 				System.out.printf("Resuming round %d\n", round);
@@ -92,26 +95,8 @@ public class Main {
 			}
 
 			// if ai then for first round human plays first, so skip first ai invocation
-			boolean aiFirstLoopSkip = round==1;
 			boolean playing = true;
 			while (playing) {
-
-				// if last human move was specialAction then don't run ai
-				// if last human move requires a removeTurn, then don't run ai
-				// if no ai player enabled, then don't run ai
-				// if round==1 then human plays first, and don't run ai for first play loop
-				if (specialAction==SpecialActions.NORMAL && !turn.isRemoveTurn() && player2ai && !aiFirstLoopSkip) {
-
-					player.play(turn, ai.selectPlay());
-					System.out.print("\nAI plays: "+player.getLastMove());
-
-					if (turn.isRemoveTurn()) {
-						player.play(turn, ai.selectPlay());
-						System.out.print("\nAI plays: " + player.getLastMove());
-					}
-					System.out.println();
-				}
-				aiFirstLoopSkip=false;
 
 				System.out.print(player.getBoard());
 				switch (specialAction = playNext(turn)) {
@@ -139,8 +124,23 @@ public class Main {
 						break;
 				}
 
-				if (specialAction==SpecialActions.NORMAL && player2ai)
+				if (playing && specialAction==SpecialActions.NORMAL && player2ai) {
 					ai.opponentPlay(player.getLastMove());
+
+					// skip if human has remove turn next
+					if (!turn.isRemoveTurn()) {
+						player.play(turn, ai.selectPlay());
+						System.out.print("\nAI plays: " + player.getLastMove());
+
+						// if ai move has remove turn
+						if (turn.isRemoveTurn()) {
+							player.play(turn, ai.selectPlay());
+							System.out.print("\nAI plays: " + player.getLastMove());
+						}
+						System.out.println();
+					}
+				}
+
 			}
 
 			// store scores for the round

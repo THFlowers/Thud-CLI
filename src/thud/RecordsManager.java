@@ -40,13 +40,22 @@ public class RecordsManager {
 	// file format is round1_moves empty_line round2_moves
 	public void saveFile(String fileName) throws IOException {
 		try (BufferedWriter out = new BufferedWriter(new FileWriter(fileName))) {
-			for (List<String> log : moveLogs) {
-				for (String move : log) {
-					out.write(move);
-					out.newLine();
-				}
+			if (currentRound < 1)
+				return;
+			for (String move : moveLogs.get(0)) {
+				out.write(move);
 				out.newLine();
 			}
+			if (currentRound < 2)
+				return;
+			out.newLine();
+			for (String move : moveLogs.get(1)) {
+				out.write(move);
+				out.newLine();
+			}
+			if (currentRound < 3)
+				return;
+			out.newLine();
 		}
 	}
 

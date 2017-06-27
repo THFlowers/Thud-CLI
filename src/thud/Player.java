@@ -65,6 +65,7 @@ public class Player {
 
 	// replay the moves for a single round
 	public PlayState replayMoveLog(List<String> moveLog) {
+		this.moveLog = new ArrayList<String>();
 		board.initializeBoard();
 		PlayState turn = initializeGame();
 		for (String move : moveLog)

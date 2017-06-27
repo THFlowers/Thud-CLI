@@ -102,15 +102,35 @@ public class MonteCarloPlay {
 	}
 	*/
 
-	void opponentPlay(String move) {
+	public void opponentPlay(String move) {
 		//lock.lock();
 		//try {
 		while (root.children == null || root.children.size() < root.possibleMoves.size())
 			playOut();
 			//runningPlayout.awaitUninterruptibly();
-		for (MonteCarloNode child : root.children)
-			if (child.player.getLastMove().equals(move))
-				root = child;
+		MonteCarloNode oldRoot = root;
+		if (root.children.size() == 1) {
+			root = root.children.get(0);
+			root.parent = null;
+		}
+		else {
+			for (MonteCarloNode child : root.children) {
+				Player player = child.player;
+				if (player.getLastMove().equals(move)) {
+					root = child;
+					root.parent = null;
+					break;
+				}
+			}
+		}
+
+		if (root==oldRoot) {
+			root = new MonteCarloNode(move, oldRoot);
+			root.parent = null;
+
+			while (root.children == null || root.children.size() < root.possibleMoves.size())
+				playOut();
+		}
 		/*
 		} finally {
 			lock.unlock();
@@ -118,7 +138,7 @@ public class MonteCarloPlay {
 		*/
 	}
 
-	String selectPlay() {
+	public String selectPlay() {
 		/*
 		String move;
 		lock.lock();
@@ -138,6 +158,7 @@ public class MonteCarloPlay {
 		}
 
 		root = bestChoice;
+		root.parent = null;
 		return root.player.getLastMove();
 		/*
 		} finally {
