@@ -6,8 +6,12 @@ import java.util.List;
 
 /**
  * Created by Thai Flowers on 5/24/2017.
+ *
+ * Represents the game board, keeps track of current game pieces and positions, allows modification of board
+ * Also holds rule and game state agnostic board/piece queries such as is there a clear path between two pieces
  */
 public class Board {
+
 	private BoardStates[][] board = new BoardStates[15][15];
 	private List<BoardPoint> dwarfs = new LinkedList<>();
 	private List<BoardPoint> trolls = new LinkedList<>();
@@ -117,7 +121,6 @@ public class Board {
 		return c;
 	}
 
-
 	public BoardStates getAtPosition(int x, int y) {
 		return getAtPosition(new BoardPoint(x,y));
 	}
@@ -161,6 +164,31 @@ public class Board {
 		return (startPos.row ==endPos.row) ||
 			   (startPos.col ==endPos.col) ||
 			   ( ((double)Math.abs(startPos.col-endPos.col)) / ((double)Math.abs(startPos.row-endPos.row)) == 1);
+	}
+
+	public boolean clearPathBetween(BoardPoint startPos, BoardPoint endPos) {
+	    BoardPoint curPos = new BoardPoint(startPos);
+
+	    int i, j;
+	    // note that the vector components are in terms of startPos -> endPos, thus endPos - startPos is our formula
+	    i = endPos.row - startPos.row;
+	    j = endPos.col - startPos.col;
+
+	    // divided each direction by the length along that direction
+		// getting direction alone, allowing for incremental walking
+	    if (i!=0)
+	    	i = i/Math.abs(i);
+		if (j!=0)
+			j = j/Math.abs(j);
+
+		do {
+		    curPos.row += i;
+		    curPos.col += j;
+			if (!getAtPosition(curPos).equals(BoardStates.FREE))
+				break;
+		} while (!curPos.equals(endPos));
+
+		return (curPos.equals(endPos));
 	}
 
 	public void movePiece(BoardPoint startPos, BoardPoint endPos) {

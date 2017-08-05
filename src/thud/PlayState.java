@@ -2,8 +2,11 @@ package thud;
 
 /**
  * Created by Thai Flowers on 6/9/2017.
+ * Represents the current play state sans the board and piece positions.
+ * In other words it holds the current player turn (stored as a BoardState for convenience) and if this is a removeTurn.
  */
 public class PlayState {
+
 	BoardStates turn;
 	boolean removeTurn;
 

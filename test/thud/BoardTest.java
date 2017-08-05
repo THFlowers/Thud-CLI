@@ -38,6 +38,7 @@ class BoardTest {
 				new moveTestPair("S A7 B8", true), // not a valid dwarf command
 				new moveTestPair("M A7 D8", true), // not linear
 				new moveTestPair("M M12 J10", true), // nearly linear
+				new moveTestPair("M A7 J7", true), // through other pieces
 				// first legal dwarf move
 				new moveTestPair("M A7 E7", false),
 				// troll illegal movement

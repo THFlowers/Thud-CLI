@@ -7,6 +7,13 @@ import static java.lang.Math.abs;
 
 /**
  * Created by Thai Flowers on 6/15/2017.
+ *
+ * This class does NOT represent the game player(s).
+ * The class plays the input moves using a provided board and current playState.
+ * After each turn it modifies the playState as expected, incrementing current player etc.
+ *
+ * board is an injected dependency
+ * moveLog is optionally injected (call replayMoveLog after construction)
  */
 public class Player {
 
@@ -64,8 +71,10 @@ public class Player {
 	}
 
 	// replay the moves for a single round
+	// replaying a move modifies the log, so to pull off proper injection we make an empty one
+	// replay with it and then set this.moveLog to hold reference to the injected moveLog
 	public PlayState replayMoveLog(List<String> moveLog) {
-		this.moveLog = new ArrayList<String>();
+		this.moveLog = new ArrayList<>();
 		board.initializeBoard();
 		PlayState turn = initializeGame();
 		for (String move : moveLog)
@@ -76,6 +85,8 @@ public class Player {
 
 	public List<String> getMoveLog() { return moveLog; }
 
+	// originally failed with exception if moveLog was empty,
+	// so it returns " " to deal with this case
 	public String getLastMove() {
 		int size = moveLog.size();
 		return (size == 0) ? " " : moveLog.get(size-1);
@@ -105,16 +116,18 @@ public class Player {
 				// shouldn't get here
 				throw new IllegalArgumentException("Only Trolls can remove in standard Thud!");
 
-			BoardPoint[] removePositions = new BoardPoint[Math.max(order.length-1,0)];
+			// below used to use Math.max(order.length-1, 0) as the index, can't tell if that's vestigial,
+			// but it seems like order.length-1 being negative seems impossible due to first if in this block
+			BoardPoint[] removePositions = new BoardPoint[order.length-1];
 			for (int i=1; i<order.length; i++) {
 				removePositions[i - 1] = new BoardPoint(order[i]);
 			}
 
+			// called even if removePositions is zero length so that move is properly recorded
 			removePlay(removePositions);
 			turn.setRemoveTurn(false);
 		}
 		else {
-
 			if (order.length != 3)
 				throw new IllegalArgumentException("Move must be of form Command StartPos [EndPos]");
 			if (order[0].length() != 1)
@@ -179,7 +192,7 @@ public class Player {
 
 	// Troll only special play, assumes this is already checked (as in play() above)
 	private void removePlay(BoardPoint[] removePositions) {
-		// retrieve anchorPos (old endPos)
+		// begin retrieving anchorPos (old endPos)
 		String oldMove = moveLog.get(moveLog.size()-1);
 		String[] oldOrder = oldMove.split(" ");
 
@@ -194,14 +207,18 @@ public class Player {
 		if (mustCapture && (removePositions.length == 0))
 			throw new IllegalArgumentException("You must capture at least one dwarf");
 
+		// first iteration check all removePositions are valid
 		for (BoardPoint pos : removePositions) {
 			if (!board.getAtPosition(pos).equals(BoardStates.DWARF))
 				throw new IllegalArgumentException("Not a dwarf");
 			if (abs(anchorPos.row - pos.row) > 1 || abs(anchorPos.col - pos.col) > 1)
 				throw new IllegalArgumentException("Dwarf is not adjacent to the troll");
-
-			board.removePiece(pos);
 		}
+
+		// second iteration perform removes,
+		// old code could remove a few and then encounter error leaving board state invalid
+		for (BoardPoint pos : removePositions)
+            board.removePiece(pos);
 	}
 
 	private boolean playDwarf(char command, BoardPoint startPos, BoardPoint endPos) {
@@ -214,6 +231,8 @@ public class Player {
 					throw new IllegalArgumentException("End position is not free (did you mean to 'H'url?)");
 				if (!board.positionsAreLinear(startPos, endPos))
 					throw new IllegalArgumentException("Dwarf must move like chess queen");
+				if (!board.clearPathBetween(startPos, endPos))
+					throw new IllegalArgumentException("Path is blocked by another piece");
 
 				board.movePiece(startPos, endPos);
 
@@ -238,7 +257,6 @@ public class Player {
 		return false;
 	}
 
-	// assumes play validates startPos and endPos
 	private boolean playTroll(char command, BoardPoint startPos, BoardPoint endPos) {
 		switch (command) {
 			case 'M':

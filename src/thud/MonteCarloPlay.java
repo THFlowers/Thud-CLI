@@ -16,10 +16,13 @@ import java.util.concurrent.locks.ReentrantLock;
  *     https://jeffbradberry.com/posts/2015/09/intro-to-monte-carlo-tree-search/
  *     https://en.wikipedia.org/wiki/Monte_Carlo_tree_search
  *
- * Background playOut thread was blazing fast and no exceptions, but requires gigs of ram
- * Even with holding the root node and its children, and not the whole tree
+ * Note: There is, as of now, no way for the ai to send a special action command to the main class.
+ *       So when the ai is out of moves (namely numDwarfs or numTrolls is zero) then it will produce null pointer exception
  *
- * I could modify this to add nodes when a move is unsimulated with a playOut(move)
+ * Background playOut thread was blazing fast and no exceptions, but requires gigs of ram
+ * Even with holding the root node and its children, and not the whole tree (root was moved on each opponentPlay call)
+ *
+ * I could modify this to add nodes when a move has yet to be simulated via playOut
  * but as it stands, the delay caused by completing playOuts for each leaf of the root branch
  * isn't too long and makes it feel like the ai is thinking (though it is dumber than the threaded version)
  *

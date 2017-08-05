@@ -2,8 +2,12 @@ package thud;
 
 /**
  * Created by Thai Flowers on 6/15/2017.
+ *
+ * Represents a position on the game board. Formerly called a position so much of the code takes args named *pos.
+ * Many methods take a BoardPoint as argument as a way of making sure input is valid (if constructor works then valid pos)
  */
 public class BoardPoint {
+
 	int row;
 	int col;
 

@@ -4,6 +4,8 @@ import java.io.*;
 
 public class Main {
 
+	// encodes players actions above valid game moves (those are NORMAL actions)
+	// each input loop produces one of these values, allowing main loop to handle plays and special actions
 	private enum SpecialActions {
 		NORMAL, SAVE, QUIT, FORFEIT
 	}
@@ -16,41 +18,40 @@ public class Main {
 
 	public static void main(String[] args) throws IOException {
 
+		// NOTE: in current form only ai or save file can be loaded NOT both!
+
+		// rounds are 1 indexed for clarity
 		int startRound = 1;
-		boolean player2ai = false;
+		boolean player2ai = false;  // set to true if second player is played by ai
+		MonteCarloPlay ai = null;
 
-		boolean loadedFile = false;
-		for (String arg : args) {
-			if (arg.charAt(0) == '-') {
-				if (arg.equals("-a")) {
+        if (args.length > 1) {
+        	printUsageAndExit(1);
+		}
+        else if (args.length == 1) {
+			if (args[0].charAt(0) == '-') {
+				if (args[0].equals("-a")) {
 					player2ai = true;
-				}
-				else {
-					System.err.println("Proper Usage: thud -a | file.txt where -a enables ai opponent or restore human v human file");
-					System.exit(0);
+				} else {
+					printUsageAndExit(2);
 				}
 
-			}
-			else {
-				if (loadedFile) {
-					System.err.println("Proper Usage: ");
-					System.exit(0);
-				}
-				else
-					loadedFile = true;
-
+			} else {
 				System.out.println("Loading save file, if the game is complete it will be re-scored, if it is incomplete it will resume");
 				try {
 					recordsManager.loadFile(args[0]);
 				} catch (FileNotFoundException ex) {
 					System.out.printf("File %s not found!", args[0]);
-					System.exit(0);
+					System.exit(3);
+				} catch (IOException ex) {
+					System.out.printf("IO error loading %s!", args[0]);
+					System.exit(3);
 				}
 
 				recordsManager.replayRecords(player, turn);
 				startRound = recordsManager.getCurrentRound();
 				if (startRound <= 0) {
-					System.out.println("Shut er down Johnny, she's a pumpin mud!");
+					System.out.println("Shut er down Johnny, she's a pumpin' mud!");
 					System.out.println("moveLogs.size() " + recordsManager.getMoveLogs().size());
 					System.out.println("resumeRound " + recordsManager.resumeRound);
 					System.exit(-999);
@@ -60,29 +61,27 @@ public class Main {
 			}
 		}
 
-		MonteCarloPlay ai = null;
-		if (player2ai && loadedFile) {
-			System.err.println("Proper Usage: thud -a | file.txt where -a enables ai opponent or restore human v human file");
-			System.exit(0);
-		}
-
 		for (int round=startRound; round <= 2; round++) {
-
-			// don't initialize a new round if we loaded from a file
+			// don't initialize a new round if we loaded from a file in middle of a round
+			// if we didn't load from a file resumeRound() defaults to false
 			if (!recordsManager.resumeRound()) {
 				player = new Player(new Board());
 				turn = player.initializeGame();
 				recordsManager.addRound(player);
 
+				// With human players we don't have to alternate starting round player side, they can figure it out
+				// thus we can use the default game initializer (initializeGame above) and default message
 				System.out.printf("Starting round %d\n", round);
 				System.out.println("Dwarfs move first");
 
+				// However with ai, we do have to alternate starting round player side, by giving the ai a first move
+				// before the main loop starts when it gets first move, then it plays after human in the main loop
 				if (player2ai) {
 					ai = new MonteCarloPlay((round==1) ? BoardStates.TROLL : BoardStates.DWARF);
 
 					// if second round, then do an initial turn for the ai
 					if (round == 2) {
-						player.play(turn, ai.selectPlay()); // first move never has remove
+						player.play(turn, ai.selectPlay()); // first move never has remove, so don't worry handling it
 						System.out.println("\nAI plays: " + player.getLastMove());
 					}
 				}
@@ -94,16 +93,15 @@ public class Main {
 				recordsManager.setResumeRound(false);
 			}
 
-			// if ai then for first round human plays first, so skip first ai invocation
 			boolean playing = true;
-			while (playing) {
+			while (playing) { // while playing the current round
 
 				System.out.print(player.getBoard());
 				switch (specialAction = playNext(turn)) {
 					case NORMAL:
 						break;
 					case QUIT:
-						// don't allow saving if first round and empty moveLog
+						// don't allow saving if first round and empty moveLog (for this round)
 						if ( !(recordsManager.getMoveLogs().size() == 0 && round == 0) ) {
 							savePrompt();
 						}
@@ -127,12 +125,12 @@ public class Main {
 				if (playing && specialAction==SpecialActions.NORMAL && player2ai) {
 					ai.opponentPlay(player.getLastMove());
 
-					// skip if human has remove turn next
+					// skip ai play if human has remove turn next
 					if (!turn.isRemoveTurn()) {
 						player.play(turn, ai.selectPlay());
 						System.out.print("\nAI plays: " + player.getLastMove());
 
-						// if ai move has remove turn
+						// if ai move has remove turn then handle it now, so that it is player turn on next iteration
 						if (turn.isRemoveTurn()) {
 							player.play(turn, ai.selectPlay());
 							System.out.print("\nAI plays: " + player.getLastMove());
@@ -146,12 +144,6 @@ public class Main {
 			// store scores for the round
 			player.calculateScores(round);
 		}
-
-		/*
-		// turn off ai loop
-		if (ai != null)
-			ai.destroy();
-		*/
 
 		// determine final score and winner
 		int[] playerScores = player.getScores();
@@ -171,10 +163,17 @@ public class Main {
 			savePrompt();
 	}
 
+	private static void printUsageAndExit(int error) {
+		System.err.println("Proper Usage: thud -a | file.txt where -a enables ai opponent or restore human v human file");
+		System.exit(error);
+	}
+
 	private static SpecialActions playNext(PlayState turn) throws IOException {
 		Board board = player.getBoard();
 		boolean validMove = false;
 		while (!validMove) {
+
+			// force a forfeit move if further play is pointless
 			if (board.getNumDwarfs() == 0 || board.getNumTrolls() == 0)
 				return SpecialActions.FORFEIT;
 
@@ -183,7 +182,7 @@ public class Main {
 			String move = in.readLine();
 
 			// don't allow interface commands to run if a mandatory remove is in progress (could forfeit)
-			// no need to check for troll (under default rules) as only they can remove,
+			// no need to check for troll as only they can remove (at least under default rules),
 			// if using other rules then this should still be valid
 			if (!player.mustRemove()) {
 				if (move.equalsIgnoreCase("exit"))

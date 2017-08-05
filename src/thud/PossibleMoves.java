@@ -6,7 +6,7 @@ import java.util.List;
 /**
  * Created by Thai Flowers on 6/23/2017.
  *
- * Generates a list of all moves possible from
+ * Generates a list of all moves possible.  See PossiblePieceMoves for more details.
  */
 public class PossibleMoves {
 

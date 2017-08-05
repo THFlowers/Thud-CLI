@@ -5,6 +5,21 @@ import java.util.List;
 
 /**
  * Created by Thai Flowers on 6/23/2017.
+ *
+ * not public, use externally but do not make/instantiate, as this is quick-and-dirty (but not over-engineered)
+ *
+ * A helper data class for the possibleMoves class and (transitively) the MonteCarloPlay ai class,
+ * this merely stores a starting position and lists of endpoints separated by move type.
+ *
+ * PossibleMoves takes this input and uses the move type separation, startpoint, and endPoint to generate a flat list
+ * of strings storing all possible moves for this piece (minus a few remove variations).  This is then aggregated with
+ * the possiblePieceMoves for all the current player's other pieces into one massive list.
+ *
+ * It is incredibly quick and dirty and is here to simplify code so that only a small number of
+ * arguments are passed to aforementioned classes.
+ *
+ * Has no move generation code of it's own, purely a data class.
+ * For that look in Player (toward the bottom).
  */
 public class PossiblePieceMoves {
 	BoardPoint startPoint;
@@ -14,7 +29,6 @@ public class PossiblePieceMoves {
 	List<BoardPoint> remove;
 	Boolean mustRemove;
 
-	// not public, use externally but not make, as this is quick-and-dirty (but not over-engineered)
 	PossiblePieceMoves(BoardPoint startPoint, List<BoardPoint> move, List<BoardPoint> special, List<BoardPoint> remove, Boolean mustRemove) {
 		this.startPoint = startPoint;
 		this.move = move;

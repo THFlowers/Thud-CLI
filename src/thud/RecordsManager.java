@@ -1,15 +1,31 @@
 package thud;
 
-import java.io.BufferedWriter;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
+import java.io.*;
+import java.util.*;
 
 /**
  * Created by Thai Flowers on 6/21/2017.
+ *
+ * A manager class that handles save file loading and saving.
+ * You must call replayRecords after loading to make game/board state match the loaded data.
+ *
+ * It also can be used to hold the moveLogs for each round.
+ * Since player is a primary class and this is a helper class we inject player's moveLog into this class
+ * This is done via the addRound call, which is supposed to be done when the log is empty (right after creation/reset of player)
+ *
+ * Injection in one direction or the other was necessary because player modifies the moveLog during each move
+ * and we want the records stored here to update when that occurs, so we use a reference in both objects.
+ *
+ * As a bonus, when player is replaced or reset then this prevents garbage collection of the old moveLogs
+ * meaning we keep the old without any special effort or space being used to duplicate it.
+ *
+ * When loading a file this class assumes a valid save file and performs no checking and throws no special exceptions.
+ * Only unchecked exceptions may be thrown.  If only generated save files are used then this is reliable.
+ *
+ * resumeRound is set to true when loading a file and finds the round is still in progress,
+ * the method call should be though of as a question.
+ * It must be explicitly set to false via the setter setResumeRound as playing a move is performed by the player class.
+ * Besides another application (say a log viewer/editor) may not want to set it to false.
  */
 public class RecordsManager {
 	List<List<String>> moveLogs = new ArrayList<>();
@@ -60,7 +76,7 @@ public class RecordsManager {
 	}
 
 	public void loadFile(String fileName) throws IOException {
-		// initialize or clear root moveLogs
+		// initialize or clear moveLogs
 		moveLogs = new ArrayList<>();
 
 		List<String> roundMoveLog;
