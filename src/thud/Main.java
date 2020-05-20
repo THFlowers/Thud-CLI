@@ -4,7 +4,7 @@ import java.io.*;
 
 public class Main {
 
-	// encodes players actions above valid game moves (those are NORMAL actions)
+	// encodes players actions not just valid game moves (those are NORMAL actions)
 	// each input loop produces one of these values, allowing main loop to handle plays and special actions
 	private enum SpecialActions {
 		NORMAL, SAVE, QUIT, FORFEIT
@@ -25,17 +25,16 @@ public class Main {
 		boolean player2ai = false;  // set to true if second player is played by ai
 		MonteCarloPlay ai = null;
 
-        if (args.length > 1) {
-        	printUsageAndExit(1);
+        	if (args.length > 1) {
+        		printUsageAndExit(1);
 		}
-        else if (args.length == 1) {
+		else if (args.length == 1) {
 			if (args[0].charAt(0) == '-') {
 				if (args[0].equals("-a")) {
 					player2ai = true;
 				} else {
 					printUsageAndExit(2);
 				}
-
 			} else {
 				System.out.println("Loading save file, if the game is complete it will be re-scored, if it is incomplete it will resume");
 				try {
@@ -53,7 +52,7 @@ public class Main {
 				if (startRound <= 0) {
 					System.out.println("Shut er down Johnny, she's a pumpin' mud!");
 					System.out.println("moveLogs.size() " + recordsManager.getMoveLogs().size());
-					System.out.println("resumeRound " + recordsManager.resumeRound);
+					System.out.println("resumeRound " + recordsManager.resumeRound());
 					System.exit(-999);
 				} else if (startRound == 3) {
 					System.out.println("Full game recovered\n");
@@ -109,7 +108,7 @@ public class Main {
 						break;
 					case SAVE:
 						if ( (recordsManager.getMoveLogs().size() == 0 && round == 0) ) {
-						   System.out.println("Nothing to save!");
+							System.out.println("Nothing to save!");
 						}
 						else {
 							System.out.print("Filename: ");
